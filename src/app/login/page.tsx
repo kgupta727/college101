@@ -59,19 +59,20 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#f5f7fb] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-display font-bold text-forest-700 mb-2">Welcome Back</h1>
-          <p className="text-forest-600">Sign in to continue your college journey</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400 mb-3">college101</p>
+          <h1 className="text-3xl font-semibold text-slate-900 mb-2">Welcome back</h1>
+          <p className="text-slate-500">Sign in to keep building your admissions story</p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-sand-100">
+        <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
           {error && (
-            <div className="mb-6 p-4 bg-coral-50 border border-coral-200 rounded-lg">
-              <p className="text-coral-500 text-sm">{error}</p>
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600 text-sm">{error}</p>
             </div>
           )}
 
@@ -80,7 +81,7 @@ function LoginForm() {
             onClick={handleGoogleLogin}
             disabled={loading}
             variant="outline"
-            className="w-full mb-6 border-gray-300 hover:bg-gray-50 text-gray-700"
+            className="w-full mb-6 border-slate-200 text-slate-700 hover:bg-slate-50"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path
@@ -115,7 +116,7 @@ function LoginForm() {
           {/* Email/Password Form */}
           <form onSubmit={handleEmailLogin} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
                 Email
               </label>
               <input
@@ -124,13 +125,13 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-300 focus:border-transparent"
+                className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent bg-slate-50"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
                 Password
               </label>
               <input
@@ -139,41 +140,27 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-300 focus:border-transparent"
+                className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent bg-slate-50"
                 placeholder="••••••••"
               />
             </div>
 
             <div className="pt-2">
-              <button
+              <Button
                 type="submit"
                 disabled={loading}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  backgroundColor: '#000000',
-                  color: 'white',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  border: 'none',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  opacity: loading ? 0.7 : 1,
-                  transition: 'background-color 0.2s',
-                }}
-                onMouseEnter={(e) => !loading && (e.currentTarget.style.backgroundColor = '#333333')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#000000')}
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 font-medium"
               >
                 {loading ? 'Signing in...' : 'Sign In'}
-              </button>
+              </Button>
             </div>
           </form>
 
           {/* Sign Up Link */}
           <div className="mt-6 text-center">
-            <p className="text-gray-600 text-sm">
+            <p className="text-slate-500 text-sm">
               Don't have an account?{' '}
-              <Link href="/signup" className="text-forest-600 font-semibold hover:text-forest-700">
+              <Link href="/signup" className="text-slate-900 font-semibold">
                 Sign up
               </Link>
             </p>

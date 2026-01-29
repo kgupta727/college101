@@ -101,7 +101,7 @@ export default function ProfileForm({ onComplete, initialProfile, onStepComplete
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sand-50 via-white to-sand-50 py-12 px-4">
+    <div className="min-h-screen py-10 px-4">
       <div className="max-w-3xl mx-auto animate-fade-in">
         {/* Progress Bar */}
         <div className="mb-8">
@@ -110,18 +110,18 @@ export default function ProfileForm({ onComplete, initialProfile, onStepComplete
               <div
                 key={step}
                 className={`flex-1 h-2 rounded-full mx-1 animate-smooth ${
-                  idx <= currentStepIndex ? 'bg-gradient-to-r from-coral-300 to-coral-200 shadow-sm' : 'bg-sand-100'
+                  idx <= currentStepIndex ? 'bg-gradient-to-r from-slate-900 to-slate-700 shadow-sm' : 'bg-slate-200'
                 }`}
               />
             ))}
           </div>
-          <p className="text-black text-sm font-medium">
+          <p className="text-slate-800 text-sm font-medium">
             Step {currentStepIndex + 1} of {steps.length}
           </p>
         </div>
 
         {/* Form Content */}
-        <div className="bg-white border border-sand-100 rounded-xl p-8 mb-8 shadow-lg animate-slide-up">
+        <div className="bg-white/90 border border-slate-200 rounded-2xl p-8 mb-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] animate-slide-up">
           {currentStep === 'activities' && (
             <ActivitiesStep profile={profile} updateProfile={updateProfile} />
           )}
@@ -166,7 +166,7 @@ export default function ProfileForm({ onComplete, initialProfile, onStepComplete
             onClick={handlePrev}
             disabled={currentStepIndex === 0}
             variant="outline"
-            className="border-forest-300 text-forest-600 hover:bg-forest-50 animate-smooth disabled:opacity-50"
+            className="border-slate-200 text-slate-700 hover:bg-white animate-smooth disabled:opacity-50"
           >
             <ChevronLeft className="w-4 h-4 mr-2" />
             Previous
@@ -175,7 +175,7 @@ export default function ProfileForm({ onComplete, initialProfile, onStepComplete
           {currentStep === 'review' ? (
             <Button 
               onClick={() => onComplete(profile)}
-              className="bg-gradient-to-r from-forest-300 to-secondary hover:from-forest-400 hover:to-forest-300 text-white shadow-lg animate-smooth"
+              className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg animate-smooth"
             >
               Generate Narratives
             </Button>
@@ -183,7 +183,7 @@ export default function ProfileForm({ onComplete, initialProfile, onStepComplete
             <Button
               onClick={handleNext}
               disabled={!canProceed()}
-              className="bg-gradient-to-r from-coral-300 to-coral-200 hover:from-coral-400 hover:to-coral-300 text-white shadow-lg animate-smooth disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-slate-900 hover:bg-slate-800 text-white shadow-lg animate-smooth disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
               <ChevronRight className="w-4 h-4 ml-2" />

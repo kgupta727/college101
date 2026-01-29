@@ -73,20 +73,20 @@ export default function SignupPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-sand-100 text-center">
-          <div className="w-16 h-16 bg-forest-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-forest-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="min-h-screen bg-[#f5f7fb] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl p-8 border border-slate-200 text-center shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
+          <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-forest-700 mb-2">Check your email!</h2>
-          <p className="text-gray-600 mb-6">
+          <h2 className="text-2xl font-semibold text-slate-900 mb-2">Check your email</h2>
+          <p className="text-slate-500 mb-6">
             We've sent a confirmation link to <strong>{email}</strong>. Click the link to verify your account.
           </p>
           <Button
             onClick={() => router.push('/login')}
-            className="bg-gradient-to-r from-forest-300 to-secondary hover:from-forest-400 hover:to-forest-300 text-white"
+            className="bg-slate-900 hover:bg-slate-800 text-white"
           >
             Go to Login
           </Button>
@@ -96,19 +96,20 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#f5f7fb] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-display font-bold text-forest-700 mb-2">Create Account</h1>
-          <p className="text-forest-600">Start your college application journey</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400 mb-3">college101</p>
+          <h1 className="text-3xl font-semibold text-slate-900 mb-2">Create your account</h1>
+          <p className="text-slate-500">Set up a workspace to keep your profile and drafts in sync</p>
         </div>
 
         {/* Signup Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-sand-100">
+        <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
           {error && (
-            <div className="mb-6 p-4 bg-coral-50 border border-coral-200 rounded-lg">
-              <p className="text-coral-500 text-sm">{error}</p>
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600 text-sm">{error}</p>
             </div>
           )}
 
@@ -117,7 +118,7 @@ export default function SignupPage() {
             onClick={handleGoogleSignup}
             disabled={loading}
             variant="outline"
-            className="w-full mb-6 border-gray-300 hover:bg-gray-50 text-gray-700"
+            className="w-full mb-6 border-slate-200 hover:bg-slate-50 text-slate-700"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path
@@ -152,7 +153,7 @@ export default function SignupPage() {
           {/* Email/Password Form */}
           <form onSubmit={handleEmailSignup} className="space-y-5">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
                 Email
               </label>
               <input
@@ -161,13 +162,13 @@ export default function SignupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-300 focus:border-transparent"
+                className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent bg-slate-50"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
                 Password
               </label>
               <input
@@ -177,13 +178,13 @@ export default function SignupPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-300 focus:border-transparent"
+                className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent bg-slate-50"
                 placeholder="••••••••"
               />
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-2">
                 Confirm Password
               </label>
               <input
@@ -193,41 +194,27 @@ export default function SignupPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-forest-300 focus:border-transparent"
+                className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent bg-slate-50"
                 placeholder="••••••••"
               />
             </div>
 
             <div className="pt-2">
-              <button
+              <Button
                 type="submit"
                 disabled={loading}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  backgroundColor: '#000000',
-                  color: 'white',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  border: 'none',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  opacity: loading ? 0.7 : 1,
-                  transition: 'background-color 0.2s',
-                }}
-                onMouseEnter={(e) => !loading && (e.currentTarget.style.backgroundColor = '#333333')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#000000')}
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 font-medium"
               >
                 {loading ? 'Creating account...' : 'Create Account'}
-              </button>
+              </Button>
             </div>
           </form>
 
           {/* Login Link */}
           <div className="mt-6 text-center">
-            <p className="text-gray-600 text-sm">
+            <p className="text-slate-500 text-sm">
               Already have an account?{' '}
-              <Link href="/login" className="text-forest-600 font-semibold hover:text-forest-700">
+              <Link href="/login" className="text-slate-900 font-semibold">
                 Sign in
               </Link>
             </p>

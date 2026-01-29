@@ -19,7 +19,7 @@ export default function Home() {
       setLoading(false)
     }
     checkAuth()
-  }, [supabase.auth])
+  }, [supabase])
 
   const handleStartProfile = () => {
     if (isAuthenticated) {
@@ -30,154 +30,148 @@ export default function Home() {
   }
 
   return (
-    <div 
-      className="min-h-screen bg-white relative overflow-hidden"
-      style={{
-        background: `
-          radial-gradient(ellipse at 50% 0%, rgba(5, 150, 105, 0.15) 0%, transparent 50%),
-          radial-gradient(ellipse at 0% 50%, rgba(5, 150, 105, 0.1) 0%, transparent 50%),
-          radial-gradient(ellipse at 100% 50%, rgba(5, 150, 105, 0.1) 0%, transparent 50%),
-          white
-        `,
-      }}
-    >
-      {/* Light Rays Effect */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: `
-            conic-gradient(from 0deg at 50% 0%, 
-              rgba(5, 150, 105, 0.08) 0deg,
-              transparent 60deg,
-              transparent 300deg,
-              rgba(5, 150, 105, 0.08) 360deg
-            )
-          `,
-          opacity: 0.5,
-        }}      />
-      {/* Content */}      <div className="relative z-10">
-      {/* Navigation */}
-      <nav className="border-b border-sand-100 blur-backdrop sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-display font-bold gradient-text">
-            college101
-          </h1>
-          <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-[#f5f7fb] relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-white via-[#eef2ff] to-white" />
+      <div className="absolute inset-x-0 top-[-200px] h-[400px] blur-3xl bg-gradient-to-r from-blue-100 via-indigo-100 to-cyan-100 opacity-70" />
+
+      <div className="relative z-10">
+        <nav className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
+          <div>
+            <p className="text-sm uppercase tracking-[0.3em] text-slate-400">college101</p>
+            <p className="text-xs text-slate-400">Admissions toolkit</p>
+          </div>
+          <div className="flex items-center gap-3">
             {loading ? null : isAuthenticated ? (
               <Link href="/flow">
-                <Button variant="outline" className="border-forest-300 text-forest-600 hover:bg-forest-50">
+                <Button variant="outline" className="border-slate-200 text-slate-600 hover:bg-slate-100">
                   Dashboard
                 </Button>
               </Link>
             ) : (
               <>
                 <Link href="/login">
-                  <Button variant="outline" className="border-forest-300 text-forest-600 hover:bg-forest-50">
+                  <Button variant="outline" className="border-slate-200 text-slate-600 hover:bg-slate-100">
                     Login
                   </Button>
                 </Link>
                 <Link href="/signup">
-                  <Button className="bg-gradient-to-r from-forest-300 to-forest-400 hover:from-forest-400 hover:to-forest-500 text-white">
+                  <Button className="bg-slate-900 hover:bg-slate-800 text-white">
                     Sign Up
                   </Button>
                 </Link>
               </>
             )}
           </div>
-        </div>
-      </nav>
+        </nav>
 
-      {/* Hero Section */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center animate-slide-up">
-        <h2 className="text-5xl sm:text-6xl font-display font-bold text-forest-700 mb-6 leading-tight">
-          Turn Your Activities Into <span className="bg-gradient-to-r from-coral-300 to-coral-200 bg-clip-text text-transparent">Coherent Stories</span>
-        </h2>
-        <p className="text-xl text-forest-500 mb-8 max-w-2xl mx-auto leading-relaxed">
-          college101 analyzes your messy collection of activities and generates 2-3 powerful narrative "spikes" designed specifically for your target schools.
-        </p>
-
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-          <Button 
-            onClick={handleStartProfile}
-            size="lg" 
-            className="bg-gradient-to-r from-coral-300 to-coral-200 hover:from-coral-400 hover:to-coral-300 text-white px-8 shadow-lg hover:shadow-xl glow hover:glow animate-smooth"
-          >
-            {isAuthenticated ? 'Continue to Dashboard' : 'Start Your Profile'}
-          </Button>
-          <Link href="#features">
-            <Button size="lg" variant="outline" className="border-forest-300 text-forest-600 hover:bg-forest-50 px-8 animate-smooth">
-              Learn More
-            </Button>
-          </Link>
-        </div>
-
-        {/* Feature Preview */}
-        <div id="features" className="grid md:grid-cols-3 gap-6 mt-20">
-          <div className="bg-white/80 border border-sand-100 rounded-xl p-6 card-hover shadow-md hover:glow-subtle hover:shadow-lg transition-all duration-300 float">
-            <div className="text-4xl mb-3 block">📊</div>
-            <h3 className="text-lg font-display font-semibold text-forest-600 mb-2">Narrative Analysis</h3>
-            <p className="text-forest-500 text-sm leading-relaxed">
-              AI generates 3 distinct narrative spikes from your activities with coherence scores
+        <main className="max-w-6xl mx-auto px-6 pb-24">
+          <section className="text-center py-16">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/70 border border-slate-200 text-sm text-slate-500">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              AI strategy copilot for ambitious students
+            </div>
+            <h1 className="mt-8 text-4xl sm:text-5xl md:text-6xl font-semibold text-slate-900 tracking-tight">
+              Build admissions narratives
+              <br /> that feel deliberate, not chaotic
+            </h1>
+            <p className="mt-6 text-lg text-slate-600 max-w-3xl mx-auto">
+              Paste every activity, competition, and passion project. We synthesize the chaos into polished "spikes", alignment summaries, and essay prompts tuned to each school on your list.
             </p>
-          </div>
-
-          <div className="bg-white/80 border border-sand-100 rounded-xl p-6 card-hover shadow-md hover:glow-subtle hover:shadow-lg transition-all duration-300 float" style={{ animationDelay: '200ms' }}>
-            <div className="text-4xl mb-3 block">🎯</div>
-            <h3 className="text-lg font-display font-semibold text-forest-600 mb-2">School Fit Analysis</h3>
-            <p className="text-forest-500 text-sm leading-relaxed">
-              See how your narrative aligns with each school's "admissions DNA"
-            </p>
-          </div>
-
-          <div className="bg-white/80 border border-sand-100 rounded-xl p-6 card-hover shadow-md hover:glow-subtle hover:shadow-lg transition-all duration-300 float" style={{ animationDelay: '400ms' }}>
-            <div className="text-4xl mb-3 block">✍️</div>
-            <h3 className="text-lg font-display font-semibold text-forest-600 mb-2">Essay Optimization</h3>
-            <p className="text-forest-500 text-sm leading-relaxed">
-              Get AI-powered rewrite suggestions for each school's unique preferences
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-sand-100">
-        <h3 className="text-3xl font-display font-bold text-forest-700 mb-8 text-center">How It Works</h3>
-        <div className="space-y-6">
-          <div className="flex gap-4 animate-slide-in">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-r from-coral-300 to-coral-200 flex items-center justify-center text-white font-bold shadow-md glow">1</div>
-            <div>
-              <h4 className="font-display font-semibold text-forest-600 mb-1">Input Your Activities</h4>
-              <p className="text-forest-500">Dump all your activities, clubs, projects, and academic interests</p>
+            <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+              <Button onClick={handleStartProfile} className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-6 text-base">
+                {isAuthenticated ? 'Open dashboard' : 'Start free workspace'}
+              </Button>
+              <Link href="#features">
+                <Button variant="outline" className="border-slate-200 text-slate-600 hover:bg-white px-8 py-6 text-base">
+                  See how it works
+                </Button>
+              </Link>
             </div>
-          </div>
-          <div className="flex gap-4 animate-slide-in" style={{ animationDelay: '100ms' }}>
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-r from-coral-300 to-coral-200 flex items-center justify-center text-white font-bold shadow-md glow">2</div>
-            <div>
-              <h4 className="font-display font-semibold text-forest-600 mb-1">Get Narrative Suggestions</h4>
-              <p className="text-forest-500">AI analyzes your profile and generates 3 coherent narrative spikes</p>
-            </div>
-          </div>
-          <div className="flex gap-4 animate-slide-in" style={{ animationDelay: '200ms' }}>
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-r from-coral-300 to-coral-200 flex items-center justify-center text-white font-bold shadow-md glow">3</div>
-            <div>
-              <h4 className="font-display font-semibold text-forest-600 mb-1">Analyze School Fit</h4>
-              <p className="text-forest-500">See how each narrative fits your target schools with detailed breakdowns</p>
-            </div>
-          </div>
-          <div className="flex gap-4 animate-slide-in" style={{ animationDelay: '300ms' }}>
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-r from-coral-300 to-coral-200 flex items-center justify-center text-white font-bold shadow-md glow">4</div>
-            <div>
-              <h4 className="font-display font-semibold text-forest-600 mb-1">Optimize Your Essays</h4>
-              <p className="text-forest-500">Get school-specific essay suggestions and action timelines</p>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="border-t border-sand-100 py-8 text-center text-forest-500 blur-backdrop">
-        <p className="font-medium">college101 • AI-powered college admissions strategy</p>
-      </footer>
+            <dl className="mt-14 grid grid-cols-2 md:grid-cols-4 gap-6 text-left">
+              {[
+                { label: 'Narratives generated', value: '12,400+' },
+                { label: 'Schools tracked', value: '180+' },
+                { label: 'Avg. review time saved', value: '28 hrs' },
+                { label: 'Essay prompts surfaced', value: '320+' },
+              ].map((stat) => (
+                <div key={stat.label} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                  <dt className="text-xs uppercase tracking-[0.2em] text-slate-400">{stat.label}</dt>
+                  <dd className="mt-3 text-2xl font-semibold text-slate-900">{stat.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <section id="features" className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                title: 'Narrative architect',
+                description: 'Group scattered activities into 3 distinct spikes with positioning statements.',
+              },
+              {
+                title: 'School DNA cards',
+                description: 'Instantly see what each target school rewards and where your profile resonates.',
+              },
+              {
+                title: 'Essay launch kits',
+                description: 'Auto-generate outlines, voice guidelines, and concrete anecdotes to reuse.',
+              },
+            ].map((feature) => (
+              <div key={feature.title} className="card-surface rounded-3xl p-8 flex flex-col gap-4">
+                <div className="h-10 w-10 rounded-full bg-slate-900/90 text-white flex items-center justify-center text-lg">
+                  •
+                </div>
+                <h3 className="text-xl font-semibold text-slate-900">{feature.title}</h3>
+                <p className="text-sm text-slate-600">{feature.description}</p>
+              </div>
+            ))}
+          </section>
+
+          <section className="mt-20 grid lg:grid-cols-2 gap-8 items-start">
+            <div className="card-surface rounded-3xl p-8">
+              <p className="text-sm uppercase tracking-[0.3em] text-slate-400">workflow</p>
+              <h3 className="mt-4 text-2xl font-semibold text-slate-900">Five deliberate passes instead of one messy sprint</h3>
+              <ol className="mt-6 space-y-4 text-slate-600">
+                {[
+                  'Dump every activity, job, research stint, and spark into the inbox list.',
+                  'Auto-cluster into academic, community, creative, and leadership threads.',
+                  'Let the model propose 3-4 coherent spikes plus supporting evidence.',
+                  'Score each target school for resonance, gaps, and action items.',
+                  'Generate essay kits and weekly follow-ups to keep momentum.',
+                ].map((step, index) => (
+                  <li key={step} className="flex items-start gap-4">
+                    <span className="mt-1 h-8 w-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-medium">
+                      {index + 1}
+                    </span>
+                    <p>{step}</p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-8" style={{ boxShadow: 'var(--shadow-soft)' }}>
+              <p className="text-sm uppercase tracking-[0.3em] text-slate-400">What you see</p>
+              <div className="mt-6 space-y-4">
+                {[
+                  'Auto-saving profile with version history',
+                  'Real-time narrative coherence meter',
+                  'School sheets with tone + essay lens',
+                  'Action plan board that feeds essays',
+                ].map((item) => (
+                  <div key={item} className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                    <p className="text-sm text-slate-600">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <footer className="mt-24 border-t border-slate-200 pt-8 text-center text-sm text-slate-500">
+            Built for students who refuse to be a bullet list.
+          </footer>
+        </main>
       </div>
     </div>
   )

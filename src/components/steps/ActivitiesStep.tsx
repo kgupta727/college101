@@ -152,18 +152,18 @@ export default function ActivitiesStep({ profile, updateProfile }: ActivitiesSte
       <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-6 shadow-lg">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <p className="text-xs uppercase tracking-wide text-gray-500">Single activity</p>
-            <h3 className="text-lg font-semibold text-black">Add an activity with structured stats</h3>
+            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Single activity</p>
+            <h3 className="text-lg font-semibold text-slate-900">Add an activity with structured stats</h3>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {QUICK_TEMPLATES.map((tpl) => (
               <button
                 key={tpl.id}
                 onClick={() => applyTemplate(tpl)}
-                className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg bg-blue-500 hover:bg-blue-600 text-white border border-blue-600"
+                className="group flex items-center gap-2 px-4 py-3 text-xs font-semibold rounded-xl bg-slate-900 text-white shadow-sm border border-slate-800 hover:-translate-y-0.5 hover:shadow-md transition"
               >
-                <Sparkles className="w-4 h-4 text-blue-300" />
-                Quick add: {tpl.name}
+                <Sparkles className="w-4 h-4 text-emerald-300" />
+                <span className="text-left leading-tight">Quick add: {tpl.name}</span>
               </button>
             ))}
           </div>

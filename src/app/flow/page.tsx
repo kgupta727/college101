@@ -22,6 +22,12 @@ export default function FlowPage() {
   const [selectedNarrative, setSelectedNarrative] = useState<Narrative | null>(null)
   const [loading, setLoading] = useState(false)
   const [initialLoad, setInitialLoad] = useState(true)
+  const steps: { key: FlowStep; label: string }[] = [
+    { key: 'profile', label: 'Profile' },
+    { key: 'narratives', label: 'Narratives' },
+    { key: 'schoolFit', label: 'School Fit' },
+    { key: 'actionPlan', label: 'Action Plan' },
+  ]
 
   // Load existing profile on mount
   useEffect(() => {
@@ -83,60 +89,70 @@ export default function FlowPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="border-b border-sand-100 bg-white/80 backdrop-blur-sm sticky top-0 z-50 animate-fade-in">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-[#f5f7fb] relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-white via-[#eef2ff] to-white" />
+      <div className="absolute inset-x-0 top-[-240px] h-[420px] blur-3xl bg-gradient-to-r from-blue-100 via-indigo-100 to-cyan-100 opacity-70" />
+      <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 20% 20%, rgba(15,118,110,0.06), transparent 28%), radial-gradient(circle at 80% 10%, rgba(8,47,73,0.05), transparent 26%)' }} />
+
+      <div className="relative z-10">
+        {/* Header */}
+        <header className="sticky top-0 z-50 border-b border-white/30 bg-white/70 backdrop-blur-xl">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
             <Link href="/">
-              <Button variant="ghost" className="text-forest-600 hover:text-forest-700 hover:bg-sand-50 animate-smooth">
+              <Button variant="ghost" className="text-slate-700 hover:text-slate-900 hover:bg-white/60">
                 <ChevronLeft className="w-4 h-4 mr-2" />
                 Back
               </Button>
             </Link>
-            <h1 className="text-xl font-display font-bold bg-gradient-to-r from-forest-500 to-forest-300 bg-clip-text text-transparent">
-              college101
-            </h1>
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-400">workspace</p>
+              <p className="text-sm font-semibold text-slate-900">college101</p>
+            </div>
             <UserMenu />
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Progress Indicator */}
-        {currentStep !== 'profile' && (
-          <div className="mb-8 animate-slide-in">
-            <div className="flex items-center gap-2 text-sm text-forest-400 font-medium">
-              <span className="line-through">Profile</span>
-              <span>→</span>
-              <span
-                className={currentStep === 'narratives' ? 'text-coral-300 font-semibold' : 'line-through'}
-              >
-                Narratives
-              </span>
-              <span>→</span>
-              <span
-                className={currentStep === 'schoolFit' ? 'text-coral-300 font-semibold' : ''}
-              >
-                School Fit
-              </span>
-              <span>→</span>
-              <span
-                className={currentStep === 'actionPlan' ? 'text-coral-300 font-semibold' : ''}
-              >
-                Action Plan
-              </span>
+        {/* Main Content */}
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          {/* Progress Indicator */}
+          {currentStep !== 'profile' && (
+            <div className="mb-8">
+              <div className="flex flex-wrap items-center gap-3">
+                {steps.map((step, index) => {
+                  const isActive = currentStep === step.key
+                  const isComplete = (
+                    (['narratives', 'schoolFit', 'actionPlan'].includes(currentStep) && step.key === 'profile') ||
+                    (currentStep === 'schoolFit' && step.key === 'narratives') ||
+                    (currentStep === 'actionPlan' && ['narratives', 'schoolFit'].includes(step.key))
+                  )
+                  return (
+                    <div key={step.key} className="flex items-center gap-3 text-sm">
+                      {index > 0 && <span className="text-slate-300">/</span>}
+                      <span
+                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-medium shadow-sm ${
+                          isActive
+                            ? 'bg-slate-900 text-white border-slate-900'
+                            : isComplete
+                              ? 'bg-white/80 text-slate-700 border-slate-200'
+                              : 'bg-white/60 text-slate-500 border-slate-200'
+                        }`}
+                      >
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: isActive ? '#22c55e' : isComplete ? '#a5b4fc' : '#cbd5e1' }} />
+                        {step.label}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Step Content */}
-        {currentStep === 'profile' && (
-          <div>
+          {/* Step Content */}
+          {currentStep === 'profile' && (
+          <div className="rounded-3xl border border-slate-200 bg-white/80 shadow-[0_24px_60px_rgba(15,23,42,0.08)] p-6">
             {initialLoad ? (
               <div className="text-center py-12">
-                <p className="text-forest-600">Loading your profile...</p>
+                <p className="text-slate-600">Loading your profile...</p>
               </div>
             ) : (
               <ProfileForm 
@@ -146,65 +162,70 @@ export default function FlowPage() {
               />
             )}
           </div>
-        )}
+          )}
 
-        {currentStep === 'narratives' && profile && (
-          <div>
-            <NarrativeDisplay
-              narratives={narratives}
-              profile={profile}
-              onSelectNarrative={handleNarrativeSelect}
-            />
+          {currentStep === 'narratives' && profile && (
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-slate-200 bg-white/85 shadow-[0_24px_60px_rgba(15,23,42,0.08)] p-6">
+              <NarrativeDisplay
+                narratives={narratives}
+                profile={profile}
+                onSelectNarrative={handleNarrativeSelect}
+              />
+            </div>
 
             {/* Action Button */}
-            <div className="mt-8 flex gap-4 animate-slide-up">
+            <div className="flex gap-4">
               <Button
                 onClick={() => setCurrentStep('profile')}
                 variant="outline"
-                className="border-forest-300 text-forest-600 hover:bg-forest-50 animate-smooth"
+                className="border-slate-200 text-slate-700 hover:bg-white"
               >
                 Back to Profile
               </Button>
               <Button
                 onClick={handleProceedToSchoolFit}
                 disabled={!selectedNarrative}
-                className="flex-1 bg-gradient-to-r from-coral-300 to-coral-200 hover:from-coral-400 hover:to-coral-300 text-white shadow-lg animate-smooth disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 bg-slate-900 hover:bg-slate-800 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Analyze School Fit →
               </Button>
             </div>
           </div>
-        )}
+          )}
 
-        {currentStep === 'schoolFit' && profile && selectedNarrative && (
-          <div>
-            <SchoolFitAnalysis narrative={selectedNarrative} profile={profile} />
+          {currentStep === 'schoolFit' && profile && selectedNarrative && (
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-slate-200 bg-white/85 shadow-[0_24px_60px_rgba(15,23,42,0.08)] p-6">
+              <SchoolFitAnalysis narrative={selectedNarrative} profile={profile} />
+            </div>
 
             {/* Action Buttons */}
-            <div className="mt-8 flex gap-4 animate-slide-up">
+            <div className="flex gap-4">
               <Button
                 onClick={() => setCurrentStep('narratives')}
                 variant="outline"
-                className="border-forest-300 text-forest-600 hover:bg-forest-50 animate-smooth"
+                className="border-slate-200 text-slate-700 hover:bg-white"
               >
                 Back to Narratives
               </Button>
               <Button
                 onClick={handleProceedToActionPlan}
-                className="flex-1 bg-gradient-to-r from-forest-300 to-forest-400 hover:from-forest-400 hover:to-forest-500 text-white shadow-lg animate-smooth"
+                className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg"
               >
                 Create Action Plan →
               </Button>
             </div>
           </div>
-        )}
+          )}
 
-        {currentStep === 'actionPlan' && profile && selectedNarrative && (
-          <div>
+          {currentStep === 'actionPlan' && profile && selectedNarrative && (
+          <div className="rounded-3xl border border-slate-200 bg-white/85 shadow-[0_24px_60px_rgba(15,23,42,0.08)] p-6">
             <ActionDashboard narrative={selectedNarrative} profile={profile} />
           </div>
-        )}
+          )}
       </main>
+      </div>
     </div>
   )
 }

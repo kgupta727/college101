@@ -52,17 +52,17 @@ export default function SchoolFitAnalysis({
   if (loading) {
     return (
       <div className="space-y-6">
-        <h2 className="text-3xl font-bold text-white">Analyzing School Fit...</h2>
+        <h2 className="text-3xl font-semibold text-slate-900">Analyzing school fit…</h2>
         <div className="grid gap-4">
           {profile.targetSchools.map((school) => (
             <div
               key={school.id}
-              className="bg-slate-700/50 border border-slate-600 rounded-lg p-6 animate-pulse"
+              className="bg-white/70 border border-slate-200 rounded-2xl p-6 shadow-sm animate-pulse"
             >
-              <div className="h-6 bg-slate-600 rounded w-1/3 mb-4" />
+              <div className="h-6 bg-slate-200 rounded w-1/3 mb-4" />
               <div className="space-y-3">
-                <div className="h-4 bg-slate-600 rounded w-full" />
-                <div className="h-4 bg-slate-600 rounded w-2/3" />
+                <div className="h-4 bg-slate-200 rounded w-full" />
+                <div className="h-4 bg-slate-200 rounded w-2/3" />
               </div>
             </div>
           ))}
@@ -79,10 +79,10 @@ export default function SchoolFitAnalysis({
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="border-b border-slate-700 pb-6">
-        <h2 className="text-3xl font-bold text-white mb-2">School Fit Analysis</h2>
-        <p className="text-slate-300">
-          How well does "{narrative.title}" align with each school's values?
+      <div className="border-b border-slate-200 pb-6">
+        <h2 className="text-3xl font-semibold text-slate-900 mb-2">School fit analysis</h2>
+        <p className="text-slate-500">
+          How well does “{narrative.title}” align with each school’s values?
         </p>
       </div>
 
@@ -92,28 +92,29 @@ export default function SchoolFitAnalysis({
           const fit = schoolFits.get(school.id)
           if (!fit) return null
 
+          const isActive = selectedSchool === school.id
           return (
             <button
               key={school.id}
               onClick={() => setSelectedSchool(school.id)}
-              className={`text-left border-2 rounded-lg p-4 transition-all ${
-                selectedSchool === school.id
-                  ? 'border-blue-400 bg-slate-700/50'
-                  : 'border-slate-600 bg-slate-800/30 hover:border-slate-500'
+              className={`text-left rounded-2xl p-5 transition-all border shadow-sm ${
+                isActive
+                  ? 'border-slate-900 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]'
+                  : 'border-slate-200 bg-white/80 hover:bg-white'
               }`}
             >
               <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-white font-semibold">{school.name}</h3>
-                  <p className="text-slate-400 text-sm">
-                    Tier: <span className="font-medium">{school.tier}</span>
-                  </p>
+                <div className="space-y-1">
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{school.tier}</p>
+                  <h3 className="text-lg font-semibold text-slate-900">{school.name}</h3>
+                  <p className="text-sm text-slate-500">Trait resonance snapshot</p>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                    {fit.overallFitScore}%
+                  <div className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    {fit.overallFitScore}% fit
                   </div>
-                  <p className="text-xs text-slate-400">Overall Fit</p>
+                  <p className="text-xs text-slate-400 mt-1">Percentile {fit.percentileRank}th</p>
                 </div>
               </div>
             </button>
@@ -123,26 +124,26 @@ export default function SchoolFitAnalysis({
 
       {/* Detailed Analysis */}
       {selectedSchoolObj && selectedFit && (
-        <div className="bg-slate-700/30 border border-slate-600 rounded-lg p-6 space-y-6">
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
           <div>
-            <h3 className="text-xl font-bold text-white mb-4">{selectedSchoolObj.name}</h3>
+            <h3 className="text-xl font-semibold text-slate-900 mb-4">{selectedSchoolObj.name}</h3>
 
             {/* Trait Matcher */}
             <TraitMatcher fit={selectedFit} />
 
             {/* Percentile Info */}
-            <div className="mt-6 p-4 bg-slate-600/50 rounded-lg">
-              <p className="text-slate-300 text-sm">
-                <strong>Percentile Rank:</strong> Your narrative profile is in the{' '}
-                <span className="font-bold text-blue-300">{selectedFit.percentileRank}th percentile</span>{' '}
+            <div className="mt-6 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+              <p className="text-slate-600 text-sm">
+                <strong>Percentile rank:</strong> Your narrative profile is in the{' '}
+                <span className="font-bold text-slate-900">{selectedFit.percentileRank}th percentile</span>{' '}
                 of admitted students at {selectedSchoolObj.name}
               </p>
             </div>
 
             {/* Fit Assessment */}
             <div className="mt-6">
-              <h4 className="font-semibold text-white mb-3">What This Means</h4>
-              <p className="text-slate-300">
+              <h4 className="font-semibold text-slate-900 mb-3">What this means</h4>
+              <p className="text-slate-600">
                 {selectedFit.overallFitScore >= 75
                   ? '✓ Excellent fit: Your narrative strongly aligns with what this school values.'
                   : selectedFit.overallFitScore >= 60
