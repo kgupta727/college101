@@ -191,7 +191,7 @@ export default function FlowPage() {
               </Button>
               <Button
                 onClick={handleProceedToActionPlan}
-                className="flex-1 bg-gradient-to-r from-forest-300 to-secondary hover:from-forest-400 hover:to-forest-300 text-white shadow-lg animate-smooth"
+                className="flex-1 bg-gradient-to-r from-forest-300 to-forest-400 hover:from-forest-400 hover:to-forest-500 text-white shadow-lg animate-smooth"
               >
                 Create Action Plan →
               </Button>

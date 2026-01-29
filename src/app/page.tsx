@@ -52,7 +52,7 @@ export default function Home() {
                   </Button>
                 </Link>
                 <Link href="/signup">
-                  <Button className="bg-gradient-to-r from-forest-300 to-secondary hover:from-forest-400 hover:to-forest-300 text-white">
+                  <Button className="bg-gradient-to-r from-forest-300 to-forest-400 hover:from-forest-400 hover:to-forest-500 text-white">
                     Sign Up
                   </Button>
                 </Link>

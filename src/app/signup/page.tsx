@@ -201,7 +201,7 @@ export default function SignupPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-forest-300 to-secondary hover:from-forest-400 hover:to-forest-300 text-white"
+              className="w-full bg-gradient-to-r from-forest-300 to-forest-400 hover:from-forest-400 hover:to-forest-500 text-white"
             >
               {loading ? 'Creating account...' : 'Create Account'}
             </Button>
