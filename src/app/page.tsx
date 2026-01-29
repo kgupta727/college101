@@ -128,11 +128,11 @@ export default function Home() {
             ))}
           </section>
 
-          <section className="mt-20 grid lg:grid-cols-2 gap-8 items-start">
-            <div className="card-surface rounded-3xl p-8">
-              <p className="text-sm uppercase tracking-[0.3em] text-slate-400">workflow</p>
-              <h3 className="mt-4 text-2xl font-semibold text-slate-900">Five deliberate passes instead of one messy sprint</h3>
-              <ol className="mt-6 space-y-4 text-slate-600">
+          <section className="mt-20">
+            <div className="card-surface rounded-3xl p-12">
+              <p className="text-base uppercase tracking-[0.35em] text-slate-400">workflow</p>
+              <h3 className="mt-4 text-3xl sm:text-4xl font-semibold text-slate-900">Five deliberate passes instead of one messy sprint</h3>
+              <ol className="mt-8 space-y-5 text-base text-slate-600">
                 {[
                   'Dump every activity, job, research stint, and spark into the inbox list.',
                   'Auto-cluster into academic, community, creative, and leadership threads.',
@@ -140,31 +140,14 @@ export default function Home() {
                   'Score each target school for resonance, gaps, and action items.',
                   'Generate essay kits and weekly follow-ups to keep momentum.',
                 ].map((step, index) => (
-                  <li key={step} className="flex items-start gap-4">
-                    <span className="mt-1 h-8 w-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-medium">
+                  <li key={step} className="flex items-start gap-5">
+                    <span className="mt-1 h-10 w-10 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-medium">
                       {index + 1}
                     </span>
                     <p>{step}</p>
                   </li>
                 ))}
               </ol>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-8" style={{ boxShadow: 'var(--shadow-soft)' }}>
-              <p className="text-sm uppercase tracking-[0.3em] text-slate-400">What you see</p>
-              <div className="mt-6 space-y-4">
-                {[
-                  'Auto-saving profile with version history',
-                  'Real-time narrative coherence meter',
-                  'School sheets with tone + essay lens',
-                  'Action plan board that feeds essays',
-                ].map((item) => (
-                  <div key={item} className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                    <p className="text-sm text-slate-600">{item}</p>
-                  </div>
-                ))}
-              </div>
             </div>
           </section>
 
