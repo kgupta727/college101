@@ -30,7 +30,32 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-off-white">
+    <div 
+      className="min-h-screen bg-white relative overflow-hidden"
+      style={{
+        background: `
+          radial-gradient(ellipse at 50% 0%, rgba(5, 150, 105, 0.15) 0%, transparent 50%),
+          radial-gradient(ellipse at 0% 50%, rgba(5, 150, 105, 0.1) 0%, transparent 50%),
+          radial-gradient(ellipse at 100% 50%, rgba(5, 150, 105, 0.1) 0%, transparent 50%),
+          white
+        `,
+      }}
+    >
+      {/* Light Rays Effect */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `
+            conic-gradient(from 0deg at 50% 0%, 
+              rgba(5, 150, 105, 0.08) 0deg,
+              transparent 60deg,
+              transparent 300deg,
+              rgba(5, 150, 105, 0.08) 360deg
+            )
+          `,
+          opacity: 0.5,
+        }}      />
+      {/* Content */}      <div className="relative z-10">
       {/* Navigation */}
       <nav className="border-b border-sand-100 blur-backdrop sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
@@ -153,6 +178,7 @@ export default function Home() {
       <footer className="border-t border-sand-100 py-8 text-center text-forest-500 blur-backdrop">
         <p className="font-medium">college101 • AI-powered college admissions strategy</p>
       </footer>
+      </div>
     </div>
   )
 }

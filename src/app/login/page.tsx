@@ -59,7 +59,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-forest-50 to-sand-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
@@ -144,13 +144,29 @@ function LoginForm() {
               />
             </div>
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-forest-300 to-forest-400 hover:from-forest-400 hover:to-forest-500 text-white"
-            >
-              {loading ? 'Signing in...' : 'Sign In'}
-            </Button>
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  backgroundColor: '#000000',
+                  color: 'white',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  border: 'none',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.7 : 1,
+                  transition: 'background-color 0.2s',
+                }}
+                onMouseEnter={(e) => !loading && (e.currentTarget.style.backgroundColor = '#333333')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#000000')}
+              >
+                {loading ? 'Signing in...' : 'Sign In'}
+              </button>
+            </div>
           </form>
 
           {/* Sign Up Link */}

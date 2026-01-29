@@ -3,32 +3,34 @@
 @import "tailwindcss";
 
 :root {
-  --color-forest-50: #f4f7f5;
-  --color-forest-100: #e8f0ea;
-  --color-forest-200: #c5dccb;
-  --color-forest-300: #5E8E44;
-  --color-forest-400: #497035;
-  --color-forest-500: #28502F;
-  --color-forest-600: #204028;
-  --color-forest-700: #183020;
+  /* Minimal Light Theme */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
   
-  --color-sand-50: #fefdfb;
-  --color-sand-100: #F0CFA9;
-  --color-sand-200: #e8c09a;
-  --color-sand-300: #deb08a;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
   
-  --color-coral-50: #fef5f3;
-  --color-coral-100: #EBBBA7;
-  --color-coral-200: #E08B76;
-  --color-coral-300: #EF6442;
-  --color-coral-400: #CE4B27;
-  --color-coral-500: #b83f20;
+  --border-light: #e5e7eb;
+  --border-medium: #d1d5db;
   
-  --color-off-white: #f0cfa9;
+  --accent-primary: #28502F;
+  --accent-secondary: #5E8E44;
+  --accent-danger: #EF6442;
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 html {
-  background-color: var(--color-off-white);
+  background-color: var(--bg-primary);
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 @layer utilities {
@@ -36,43 +38,21 @@ html {
     transition: all 0.3s ease-in-out;
   }
   
-  .glow {
-    box-shadow: 0 0 30px rgba(239, 100, 66, 0.15);
-  }
-  
-  .glow-subtle {
-    box-shadow: 0 0 20px rgba(94, 142, 68, 0.08);
-  }
-  
   .gradient-text {
-    background: linear-gradient(135deg, var(--color-forest-500) 0%, var(--color-coral-300) 100%);
+    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   
-  .blur-backdrop {
-    backdrop-filter: blur(10px) brightness(1.1);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-  }
-  
   .card-hover:hover {
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
     transition: all 0.3s ease-in-out;
-  }
-  
-  .shimmer {
-    animation: shimmer 2s infinite;
   }
   
   .float {
     animation: float 6s ease-in-out infinite;
-  }
-  
-  @keyframes shimmer {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
   }
   
   @keyframes float {
@@ -80,4 +60,3 @@ html {
     50% { transform: translateY(-10px); }
   }
 }
-
