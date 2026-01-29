@@ -3,6 +3,18 @@
 import { createClient } from '@/lib/supabase/server'
 import { StudentProfile } from '@/types'
 
+// School database for restoring full school data
+const SCHOOLS_DATABASE: any = {
+  '1': { id: '1', name: 'Stanford University', tier: 'Reach', satRange: [1470, 1570], actRange: [33, 35], admissionRate: 3.4, majorOfferingsCount: 275 },
+  '2': { id: '2', name: 'Harvard University', tier: 'Reach', satRange: [1480, 1570], actRange: [33, 35], admissionRate: 3.2, majorOfferingsCount: 86 },
+  '3': { id: '3', name: 'MIT', tier: 'Reach', satRange: [1500, 1570], actRange: [34, 35], admissionRate: 2.7, majorOfferingsCount: 30 },
+  '4': { id: '4', name: 'University of Pennsylvania', tier: 'Reach', satRange: [1450, 1560], actRange: [33, 35], admissionRate: 3.2, majorOfferingsCount: 280 },
+  '5': { id: '5', name: 'Northwestern University', tier: 'Reach', satRange: [1440, 1550], actRange: [32, 35], admissionRate: 5.6, majorOfferingsCount: 220 },
+  '6': { id: '6', name: 'UC Berkeley', tier: 'Target', satRange: [1320, 1540], actRange: [29, 35], admissionRate: 8.7, majorOfferingsCount: 350 },
+  '7': { id: '7', name: 'Michigan State University', tier: 'Target', satRange: [1140, 1340], actRange: [24, 31], admissionRate: 64.2, majorOfferingsCount: 200 },
+  '8': { id: '8', name: 'State University of New York', tier: 'Safety', satRange: [1000, 1200], actRange: [20, 27], admissionRate: 41.2, majorOfferingsCount: 250 },
+}
+
 export async function saveProfileAction(profile: StudentProfile) {
   const supabase = await createClient()
   
@@ -144,15 +156,23 @@ export async function loadProfileAction(): Promise<StudentProfile | null> {
       intendedMajors: profileData.intended_majors || [],
       academicInterests: profileData.academic_interests || '',
     },
-    targetSchools: (schoolsData || []).map(school => ({
-      id: school.id,
-      name: school.name,
-      tier: school.type as any || 'Target',
-      satRange: [0, 0] as [number, number],
-      actRange: [0, 0] as [number, number],
-      admissionRate: 0,
-      majorOfferingsCount: 0,
-    })),
+    targetSchools: (schoolsData || []).map((school: any) => {
+      // Restore full school data from database by matching on name
+      const schoolKey = Object.keys(SCHOOLS_DATABASE).find(
+        key => SCHOOLS_DATABASE[key].name === school.name
+      )
+      const fullSchool = schoolKey ? SCHOOLS_DATABASE[schoolKey] : null
+      
+      return fullSchool || {
+        id: school.id,
+        name: school.name,
+        tier: school.type as any || 'Target',
+        satRange: [0, 0] as [number, number],
+        actRange: [0, 0] as [number, number],
+        admissionRate: 0,
+        majorOfferingsCount: 0,
+      }
+    }),
     constraints: profileData.constraints || {
       monthsUntilDeadline: 12,
       budgetForNewActivities: false,
@@ -198,4 +218,33 @@ export async function saveNarrativesAction(profileId: string, narratives: any[])
   }
 
   return { success: true }
+}
+
+export async function loadNarrativesAction(): Promise<any[]> {
+  const supabase = await createClient()
+  
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  
+  if (userError || !user) {
+    return []
+  }
+
+  // Get profile for user
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!profileData) return []
+
+  // Load narratives
+  const { data: narrativesData } = await supabase
+    .from('narratives')
+    .select('narrative_data')
+    .eq('profile_id', profileData.id)
+
+  return (narrativesData || [])
+    .map(n => n.narrative_data)
+    .filter(Boolean)
 }

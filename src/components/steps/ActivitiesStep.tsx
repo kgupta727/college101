@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { StudentProfile, Activity, ActivityTag } from '@/types'
 import { Button } from '../ui/button'
-import { X, Plus, Upload, BarChart3, Sparkles, NotebookPen, Wand2 } from 'lucide-react'
+import { X, Plus, Upload, BarChart3, Sparkles, NotebookPen, Wand2, Edit2 } from 'lucide-react'
 
 interface ActivitiesStepProps {
   profile: StudentProfile
@@ -50,6 +50,13 @@ export default function ActivitiesStep({ profile, updateProfile }: ActivitiesSte
   const [selectedTags, setSelectedTags] = useState<ActivityTag[]>([])
   const [description, setDescription] = useState('')
   const [bulkInput, setBulkInput] = useState('')
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null)
+  const [editActivityName, setEditActivityName] = useState('')
+  const [editActivityRole, setEditActivityRole] = useState('')
+  const [editActivityHours, setEditActivityHours] = useState('')
+  const [editActivityYears, setEditActivityYears] = useState('')
+  const [editActivityTags, setEditActivityTags] = useState<ActivityTag[]>([])
+  const [editActivityDescription, setEditActivityDescription] = useState('')
 
   const activityStats = useMemo(() => {
     const total = profile.activities.length
@@ -95,6 +102,41 @@ export default function ActivitiesStep({ profile, updateProfile }: ActivitiesSte
     updateProfile({
       activities: profile.activities.filter((a) => a.id !== id),
     })
+  }
+
+  const startEditActivity = (activity: Activity) => {
+    setEditingActivityId(activity.id)
+    setEditActivityName(activity.name)
+    setEditActivityRole(activity.role || '')
+    setEditActivityHours(activity.hoursPerWeek ? activity.hoursPerWeek.toString() : '')
+    setEditActivityYears(activity.yearsInvolved ? activity.yearsInvolved.toString() : '')
+    setEditActivityTags(activity.tags)
+    setEditActivityDescription(activity.description || '')
+  }
+
+  const saveEditActivity = () => {
+    if (!editingActivityId) return
+    
+    const updatedActivities = profile.activities.map(a =>
+      a.id === editingActivityId
+        ? {
+            ...a,
+            name: editActivityName,
+            role: editActivityRole || undefined,
+            hoursPerWeek: editActivityHours ? parseInt(editActivityHours) : undefined,
+            yearsInvolved: editActivityYears ? parseInt(editActivityYears) : undefined,
+            tags: editActivityTags,
+            description: editActivityDescription || undefined,
+          }
+        : a
+    )
+    
+    updateProfile({ activities: updatedActivities })
+    setEditingActivityId(null)
+  }
+
+  const cancelEditActivity = () => {
+    setEditingActivityId(null)
   }
 
   const applyTemplate = (template: Activity) => {
@@ -331,38 +373,129 @@ export default function ActivitiesStep({ profile, updateProfile }: ActivitiesSte
           </div>
           <div className="space-y-3">
             {[...profile.activities].reverse().map((activity) => (
-              <div
-                key={activity.id}
-                className="bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-start shadow-sm"
-              >
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <h4 className="text-black font-semibold text-base">{activity.name}</h4>
-                    {activity.role && <span className="text-gray-600 text-sm">{activity.role}</span>}
+              <div key={activity.id}>
+                {editingActivityId === activity.id ? (
+                  // Edit mode
+                  <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 space-y-3">
+                    <input
+                      type="text"
+                      value={editActivityName}
+                      onChange={(e) => setEditActivityName(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Activity name"
+                    />
+                    <input
+                      type="text"
+                      value={editActivityRole}
+                      onChange={(e) => setEditActivityRole(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Role (e.g., President, Team Lead)"
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="number"
+                        value={editActivityHours}
+                        onChange={(e) => setEditActivityHours(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Hours per week"
+                        min="0"
+                      />
+                      <input
+                        type="number"
+                        value={editActivityYears}
+                        onChange={(e) => setEditActivityYears(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Years involved"
+                        min="0"
+                      />
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {ACTIVITY_TAGS.map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() =>
+                            setEditActivityTags(
+                              editActivityTags.includes(tag)
+                                ? editActivityTags.filter((t) => t !== tag)
+                                : [...editActivityTags, tag]
+                            )
+                          }
+                          className={`px-3 py-1 text-xs rounded border transition-colors ${
+                            editActivityTags.includes(tag)
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50'
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      value={editActivityDescription}
+                      onChange={(e) => setEditActivityDescription(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      placeholder="Description of accomplishments"
+                      rows={3}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={saveEditActivity}
+                        className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={cancelEditActivity}
+                        className="flex-1 px-3 py-2 bg-gray-300 hover:bg-gray-400 text-black rounded-lg font-medium transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {activity.tags.map((tag) => (
-                      <span key={tag} className="px-2 py-1 bg-blue-100 text-blue-900 text-xs rounded border border-blue-300">
-                        {tag}
-                      </span>
-                    ))}
+                ) : (
+                  // View mode
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-start shadow-sm">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h4 className="text-black font-semibold text-base">{activity.name}</h4>
+                        {activity.role && <span className="text-gray-600 text-sm">{activity.role}</span>}
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        {activity.tags.map((tag) => (
+                          <span key={tag} className="px-2 py-1 bg-blue-100 text-blue-900 text-xs rounded border border-blue-300">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="text-gray-600 text-xs flex items-center gap-3 flex-wrap">
+                        {activity.hoursPerWeek ? <span>{activity.hoursPerWeek}h/week</span> : <span className="text-gray-500">Add hours</span>}
+                        <span className="text-gray-400">•</span>
+                        {activity.yearsInvolved ? <span>{activity.yearsInvolved} year(s)</span> : <span className="text-gray-500">Add years</span>}
+                      </div>
+                      {activity.description && (
+                        <p className="text-gray-700 text-sm leading-relaxed">{activity.description}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                      <button
+                        onClick={() => startEditActivity(activity)}
+                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                        aria-label={`Edit ${activity.name}`}
+                        title="Edit activity"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => removeActivity(activity.id)}
+                        className="text-gray-400 hover:text-red-600 transition-colors"
+                        aria-label={`Remove ${activity.name}`}
+                        title="Delete activity"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="text-gray-600 text-xs flex items-center gap-3 flex-wrap">
-                    {activity.hoursPerWeek ? <span>{activity.hoursPerWeek}h/week</span> : <span className="text-gray-500">Add hours</span>}
-                    <span className="text-gray-400">•</span>
-                    {activity.yearsInvolved ? <span>{activity.yearsInvolved} year(s)</span> : <span className="text-gray-500">Add years</span>}
-                  </div>
-                  {activity.description && (
-                    <p className="text-gray-700 text-sm leading-relaxed">{activity.description}</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => removeActivity(activity.id)}
-                  className="text-gray-400 hover:text-red-600 transition-colors ml-4"
-                  aria-label={`Remove ${activity.name}`}
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                )}
               </div>
             ))}
           </div>
