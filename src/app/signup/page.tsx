@@ -150,7 +150,7 @@ export default function SignupPage() {
           </div>
 
           {/* Email/Password Form */}
-          <form onSubmit={handleEmailSignup} className="space-y-4">
+          <form onSubmit={handleEmailSignup} className="space-y-5">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email
@@ -198,13 +198,29 @@ export default function SignupPage() {
               />
             </div>
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-forest-300 to-forest-400 hover:from-forest-400 hover:to-forest-500 text-white"
-            >
-              {loading ? 'Creating account...' : 'Create Account'}
-            </Button>
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  backgroundColor: '#000000',
+                  color: 'white',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  border: 'none',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.7 : 1,
+                  transition: 'background-color 0.2s',
+                }}
+                onMouseEnter={(e) => !loading && (e.currentTarget.style.backgroundColor = '#333333')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#000000')}
+              >
+                {loading ? 'Creating account...' : 'Create Account'}
+              </button>
+            </div>
           </form>
 
           {/* Login Link */}
