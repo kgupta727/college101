@@ -18,11 +18,9 @@ export async function generateNarratives(
     .map((a) => `- ${a.name} (${a.role || 'Participant'}, ${a.hoursPerWeek || 'N/A'} hrs/week, ${a.yearsInvolved || 1} years). Tags: ${a.tags.join(', ')}. ${a.description || ''}`)
     .join('\n')
 
-  const prompt = `You are an expert college admissions counselor specializing in narrative strategy.
+  const prompt = `You are an elite college admissions strategist. Your job is to generate 3 narratives that feel UNEXPECTED, MEMORABLE, and DIFFERENT from each other.
 
-A student has the following activities and academic profile:
-
-ACTIVITIES:
+STUDENT PROFILE:
 ${activitiesText}
 
 ACADEMIC PROFILE:
@@ -31,28 +29,49 @@ ACADEMIC PROFILE:
 - Intended Major(s): ${profile.academicProfile.intendedMajors.join(', ')}
 - Academic Interests: ${profile.academicProfile.academicInterests}
 
-Analyze these activities and generate 3 distinct, coherent narrative "spikes" that could frame their college application. Each narrative should:
-1. Have a compelling title (e.g., "Climate Tech Entrepreneur", "Healthcare Access Advocate")
-2. Have a core theme (2-3 sentences)
-3. Show which current activities support it (coherence score 0-100)
-4. Identify gaps (what's missing to make it credible)
-5. Suggest activities to drop (which ones dilute the narrative)
-6. Recommend a 30-day action plan (1 concrete project)
-7. Suggest an essay angle (potential Common App topic)
+CORE GOAL:
+Even if the student is a CS/engineering major, the narratives must go BEYOND "tech" and reveal WHO THEY ARE. Assume colleges already know they can code. We need to show:
+- Impact and responsibility
+- Intellectual curiosity and how they think
+- Values, character, resilience, and worldview
 
-Format your response as a JSON array with 3 narrative objects. Each object should have:
+MANDATORY DIVERSITY RULES:
+1. Each narrative must feel like a DIFFERENT DIMENSION of the same person.
+2. Titles must NOT include words like "tech", "engineering", "STEM", "innovation", "coding", or "AI".
+3. Each narrative must have a UNIQUE CORE LENS and a UNIQUE HOOK (surprising or humanizing).
+4. Use the same activities if needed, but reinterpret them differently.
+5. If activities are narrow, create an ORIGINAL frame (e.g., "community trust-builder", "ethical decision-maker", "systems thinker", "bridge-builder").
+
+You must produce exactly 3 narratives in these three lenses:
+
+**NARRATIVE 1 — IMPACT / LEADERSHIP**
+How did they create real-world outcomes or lead people? What changed because of them?
+
+**NARRATIVE 2 — INTELLECTUAL / CURIOSITY**
+What questions keep them up at night? How do they think? What idea obsessively drives them?
+
+**NARRATIVE 3 — VALUES / GROWTH**
+What do they stand for? How did they grow? What hard choices reveal their character?
+
+REQUIRED OUTPUT QUALITY:
+- Each narrative must include a "surprising hook" idea that makes it feel fresh and specific.
+- The "theme" must be distinct across narratives (no overlap in language or framing).
+- Supporting activities must be selective (2–4 strongest) and clearly tied to the lens.
+
+Format your response as valid JSON with exactly 3 objects:
 {
-  "title": "string",
-  "theme": "string",
-  "coherenceScore": number,
-  "supportingActivities": ["activity names"],
-  "gaps": ["string"],
-  "recommendedDrops": ["activity names"],
-  "actionPlan": "string",
-  "essayAngle": "string"
+  "title": "string (no tech words, distinct, memorable)",
+  "theme": "string (2-3 sentences explaining the lens and human dimension)",
+  "coherenceScore": number (0-100 for this lens),
+  "supportingActivities": ["activity names supporting this angle"],
+  "gaps": ["what's missing to strengthen this specific angle"],
+  "recommendedDrops": ["activities that don't support this angle"],
+  "actionPlan": "string (30-day project to deepen THIS lens)",
+  "essayAngle": "string (Common App prompt + how to approach it)",
+  "surprisingHook": "string (specific, humanizing, non-generic hook idea)"
 }
 
-Return ONLY valid JSON, no additional text.`
+Return ONLY valid JSON. No extra text.`
 
   const message = await client.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -79,22 +98,47 @@ Return ONLY valid JSON, no additional text.`
 
     const narrativeData = JSON.parse(cleanedContent)
 
+    // Helper function to match activity names more intelligently
+    const findMatchingActivity = (targetName: string, activities: Activity[]) => {
+      // Normalize the target name
+      const normalized = targetName.toLowerCase().trim()
+      
+      // First try exact or near-exact match
+      const exactMatch = activities.find(a => 
+        a.name.toLowerCase() === normalized ||
+        a.name.toLowerCase().includes(normalized) ||
+        normalized.includes(a.name.toLowerCase())
+      )
+      
+      if (exactMatch) return exactMatch
+      
+      // If no exact match, try partial matching with key words
+      const targetWords = normalized.split(/\s+/)
+      const scored = activities.map(activity => {
+        const activityWords = activity.name.toLowerCase().split(/\s+/)
+        const matches = targetWords.filter(tw => 
+          activityWords.some(aw => aw.includes(tw) || tw.includes(aw))
+        )
+        return { activity, score: matches.length }
+      })
+      .filter(s => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      
+      return scored.length > 0 ? scored[0].activity : null
+    }
+
     return narrativeData.map((n: any, idx: number) => ({
       id: `narrative-${idx + 1}`,
       title: n.title,
       theme: n.theme,
       coherenceScore: n.coherenceScore,
-      supportingActivities: profile.activities.filter((a) =>
-        n.supportingActivities.some((name: string) =>
-          a.name.toLowerCase().includes(name.toLowerCase())
-        )
-      ),
+      supportingActivities: n.supportingActivities
+        .map((name: string) => findMatchingActivity(name, profile.activities))
+        .filter((a: Activity | null): a is Activity => a !== null),
       gaps: n.gaps,
-      recommendedDrops: profile.activities.filter((a) =>
-        n.recommendedDrops.some((name: string) =>
-          a.name.toLowerCase().includes(name.toLowerCase())
-        )
-      ),
+      recommendedDrops: n.recommendedDrops
+        .map((name: string) => findMatchingActivity(name, profile.activities))
+        .filter((a: Activity | null): a is Activity => a !== null),
       actionPlan: n.actionPlan,
       essayAngle: n.essayAngle,
     }))

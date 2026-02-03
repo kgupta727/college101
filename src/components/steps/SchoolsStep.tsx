@@ -27,10 +27,24 @@ export default function SchoolsStep({ profile, updateProfile, allSchools }: Scho
     })
   }
 
-  const categorizeTier = (satLow: number, satHigh: number, gpa: number, sat?: number): 'Reach' | 'Target' | 'Safety' => {
+  const categorizeTier = (satLow: number, satHigh: number, gpa: number, admissionRate: number, sat?: number): 'Reach' | 'Target' | 'Safety' => {
     const studentSAT = sat || 0
-    if (studentSAT < satLow || gpa < 3.5) return 'Reach'
-    if (studentSAT > satHigh || gpa > 3.8) return 'Safety'
+    
+    // Schools with admission rate < 10% are ALWAYS Reach, regardless of scores
+    if (admissionRate < 10) return 'Reach'
+    
+    // If student SAT is below school's low range, it's a Reach
+    if (studentSAT > 0 && studentSAT < satLow - 50) return 'Reach'
+    
+    // If student SAT is above school's high range, it's a Safety
+    if (studentSAT > 0 && studentSAT > satHigh + 50) return 'Safety'
+    
+    // If student SAT is within or near school's range, it's a Target
+    if (studentSAT > 0 && studentSAT >= satLow - 50 && studentSAT <= satHigh + 50) return 'Target'
+    
+    // If no SAT score, use GPA
+    if (gpa < 3.5) return 'Reach'
+    if (gpa >= 3.8) return 'Target'
     return 'Target'
   }
 
@@ -57,6 +71,7 @@ export default function SchoolsStep({ profile, updateProfile, allSchools }: Scho
             school.satRange[0],
             school.satRange[1],
             profile.academicProfile.gpa,
+            school.admissionRate,
             profile.academicProfile.testScores.sat
           )
 

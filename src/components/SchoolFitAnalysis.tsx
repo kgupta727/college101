@@ -4,8 +4,9 @@ import { Narrative, StudentProfile, School, SchoolFit } from '@/types'
 import { useEffect, useState, useMemo } from 'react'
 import { analyzeSchoolFitAction } from '@/actions/analyzeSchoolFit'
 import TraitMatcher from './TraitMatcher'
-import { computeTier, getTierRationale, getSchoolAlignedEssayIdea } from '@/lib/admissions-utils'
-import { Sparkles, Target, Zap } from 'lucide-react'
+import { computeTier, getTierRationale } from '@/lib/admissions-utils'
+import { generateSchoolEssayStrategy, MultiEssayStrategy, selectCommonAppPrompt } from '@/lib/essay-strategy'
+import { Sparkles, Target, Zap, ChevronDown, BookOpen, Lightbulb } from 'lucide-react'
 
 interface SchoolFitAnalysisProps {
   narrative: Narrative
@@ -58,39 +59,65 @@ export default function SchoolFitAnalysis({
 }: SchoolFitAnalysisProps) {
   const [schoolFits, setSchoolFits] = useState<Map<string, SchoolFit>>(new Map())
   const [loading, setLoading] = useState(true)
-  const [selectedSchool, setSelectedSchool] = useState<string | null>(null)
+  const [expandedSchool, setExpandedSchool] = useState<string | null>(null)
 
   useEffect(() => {
     const analyzeAllSchools = async () => {
-      setLoading(true)
-      const fits = new Map<string, SchoolFit>()
-
-      for (const school of profile.targetSchools) {
+      // Create cache key based on narrative ID and profile school IDs
+      const cacheKey = `school-fit-${narrative.id}-${profile.targetSchools.map(s => s.id).sort().join('-')}`
+      
+      // Check if we have cached results
+      let fits = new Map<string, SchoolFit>()
+      const cached = localStorage.getItem(cacheKey)
+      let isCached = false
+      
+      if (cached) {
         try {
-          const fitResult = await analyzeSchoolFitAction(narrative, school.name)
-          const schoolFit: SchoolFit = {
-            schoolId: school.id,
-            narrativeId: narrative.id,
-            traitMatch: fitResult.traitMatch,
-            overallFitScore: fitResult.overallFitScore,
-            percentileRank: fitResult.percentileRank,
-          }
-          fits.set(school.id, schoolFit)
+          const cachedData = JSON.parse(cached) as Record<string, SchoolFit>
+          fits = new Map<string, SchoolFit>(Object.entries(cachedData))
+          isCached = true
         } catch (error) {
-          console.error(`Error analyzing fit for ${school.name}:`, error)
+          console.error('Error loading cached school fit:', error)
+        }
+      }
+
+      // If not cached, analyze all schools
+      if (!isCached) {
+        for (const school of profile.targetSchools) {
+          try {
+            const fitResult = await analyzeSchoolFitAction(narrative, school.name)
+            const schoolFit: SchoolFit = {
+              schoolId: school.id,
+              narrativeId: narrative.id,
+              traitMatch: fitResult.traitMatch,
+              overallFitScore: fitResult.overallFitScore,
+              percentileRank: fitResult.percentileRank,
+            }
+            fits.set(school.id, schoolFit)
+          } catch (error) {
+            console.error(`Error analyzing fit for ${school.name}:`, error)
+          }
+        }
+
+        // Cache the results
+        try {
+          const cacheData = Object.fromEntries(fits)
+          localStorage.setItem(cacheKey, JSON.stringify(cacheData))
+        } catch (error) {
+          console.error('Error caching school fit:', error)
         }
       }
 
       setSchoolFits(fits)
       if (fits.size > 0) {
-        setSelectedSchool(profile.targetSchools[0]?.id || null)
+        setExpandedSchool(profile.targetSchools[0]?.id || null)
       }
       setLoading(false)
       onComplete?.()
     }
 
     analyzeAllSchools()
-  }, [narrative, profile, onComplete])
+  }, [narrative.id, profile.targetSchools.length, onComplete])
 
   if (loading) {
     return (
@@ -114,192 +141,271 @@ export default function SchoolFitAnalysis({
     )
   }
 
-  // Memoize school list rendering data to avoid recalculation
-  const schoolListData = useMemo(() => {
-    return profile.targetSchools
-      .map((school) => {
-        const fit = schoolFits.get(school.id)
-        if (!fit) return null
-
-        return {
-          school,
-          fit,
-          tier: computeTier(profile, school, fit),
-          topTraits: getTopTraits(fit.traitMatch),
-          isActive: selectedSchool === school.id,
-        }
-      })
-      .filter(Boolean) as Array<{
-        school: School
-        fit: SchoolFit
-        tier: 'Reach' | 'Target' | 'Safety'
-        topTraits: string
-        isActive: boolean
-      }>
-  }, [profile, schoolFits, selectedSchool])
-
-  // Memoize detailed analysis data
-  const selectedAnalysis = useMemo(() => {
-    if (!selectedSchool) return null
-
-    const selectedSchoolObj = profile.targetSchools.find((s) => s.id === selectedSchool)
-    const selectedFit = schoolFits.get(selectedSchool)
-
-    if (!selectedSchoolObj || !selectedFit) return null
-
-    return {
-      school: selectedSchoolObj,
-      fit: selectedFit,
-      tier: computeTier(profile, selectedSchoolObj, selectedFit),
-      tierRationale: getTierRationale(profile, selectedSchoolObj, computeTier(profile, selectedSchoolObj, selectedFit), selectedFit),
-      essayIdea: getSchoolAlignedEssayIdea(narrative, selectedSchoolObj, selectedFit),
-    }
-  }, [selectedSchool, profile, schoolFits, narrative])
-
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="border-b border-slate-200 pb-6">
-        <h2 className="text-3xl font-semibold text-slate-900 mb-2">School fit analysis</h2>
+        <h2 className="text-3xl font-semibold text-slate-900 mb-2">School fit and essays</h2>
         <p className="text-slate-500">
-          How well does “{narrative.title}” align with each school’s values?
+          How well does "{narrative.title}" align with each school's values? Plus your personalized essay strategy.
         </p>
       </div>
 
-      {/* School Selector */}
-      <div className="grid gap-4">
-        {schoolListData.map(({ school, fit, tier, topTraits, isActive }) => (
-          <button
-            key={school.id}
-            onClick={() => setSelectedSchool(school.id)}
-            className={`text-left rounded-2xl p-5 transition-all border shadow-sm ${
-              isActive
-                ? 'border-slate-900 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]'
-                : 'border-slate-200 bg-white/80 hover:bg-white'
-            }`}
-          >
-            <div className="flex justify-between items-start">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`text-xs uppercase tracking-[0.25em] font-semibold px-2 py-1 rounded-md border ${TIER_COLORS.list[tier]}`}
-                  >
-                    {tier}
-                  </span>
-                  <span className="text-xs text-slate-400">{school.admissionRate.toFixed(1)}% admit</span>
-                </div>
-                <h3 className="text-lg font-semibold text-slate-900">{school.name}</h3>
-                <p className="text-sm text-slate-500">Strong in {topTraits.toLowerCase()}</p>
-              </div>
-              <div className="text-right">
-                <div className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  {fit.overallFitScore}% fit
-                </div>
-                <p className="text-xs text-slate-400 mt-1">Percentile {fit.percentileRank}th</p>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* Detailed Analysis */}
-      {selectedAnalysis && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
-          <div>
-            <h3 className="text-xl font-semibold text-slate-900 mb-4">{selectedAnalysis.school.name}</h3>
-
-            {/* Dynamic Tier Explanation */}
-            <div className={`mb-6 p-4 rounded-xl border ${TIER_COLORS.detail[selectedAnalysis.tier]}`}>
-              <div className="flex items-start gap-3">
-                <Target className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold mb-1">
-                    Classified as <span className="uppercase tracking-wide">{selectedAnalysis.tier}</span>
-                  </p>
-                  <p className="text-sm opacity-90">{selectedAnalysis.tierRationale}</p>
-                </div>
+      {/* Common App Essay - Shown Once at Top */}
+      {(() => {
+        const commonAppRec = selectCommonAppPrompt(narrative)
+        return (
+          <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 p-6 space-y-5">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <BookOpen className="w-5 h-5 text-amber-600" />
+              <div>
+                <h4 className="text-lg font-bold text-amber-900">Common App Essay (650 words)</h4>
+                <p className="text-xs text-amber-700 mt-1">Universal foundation for all your applications</p>
               </div>
             </div>
 
-            {/* Trait Matcher */}
-            <TraitMatcher fit={selectedAnalysis.fit} />
+            {/* Prompt */}
+            <div className="bg-white/80 rounded-lg p-4 border border-amber-100 space-y-3">
+              <div>
+                <p className="text-xs font-medium text-amber-700 mb-2">Selected Prompt</p>
+                <p className="text-sm text-slate-700 italic leading-relaxed">{commonAppRec.prompt}</p>
+              </div>
 
-            {/* Percentile Info */}
-            <div className="mt-6 p-4 bg-slate-50 border border-slate-200 rounded-xl">
-              <p className="text-slate-600 text-sm">
-                <strong>Percentile rank:</strong> Your narrative profile is in the{' '}
-                <span className="font-bold text-slate-900">{selectedAnalysis.fit.percentileRank}th percentile</span>{' '}
-                of admitted students at {selectedAnalysis.school.name}
-              </p>
+              <div className="border-t border-amber-100 pt-3">
+                <p className="text-xs font-medium text-amber-700 mb-1">Why This Prompt</p>
+                <p className="text-sm text-slate-700">{commonAppRec.narrativeConnection}</p>
+              </div>
+
+              <div className="border-t border-amber-100 pt-3">
+                <p className="text-xs font-medium text-amber-700 mb-2">Strategic Angle</p>
+                <p className="text-sm text-slate-700">{commonAppRec.strategicAngle}</p>
+              </div>
             </div>
 
-            {/* Essay Idea */}
-            {selectedAnalysis.essayIdea && (
-              <div className="mt-6 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 border border-indigo-200 rounded-xl p-5">
-                <div className="flex items-start gap-3 mb-3">
-                  <Sparkles className="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-semibold text-slate-900 mb-1">Essay Launch Kit</h4>
-                    <p className="text-xs text-slate-500">Tailored to {selectedAnalysis.school.name}'s values</p>
+            {/* What to Emphasize & Avoid */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <p className="text-xs font-medium text-emerald-700 mb-2">What to Emphasize</p>
+                <ul className="space-y-1.5">
+                  {commonAppRec.whatToEmphasize.map((item, i) => (
+                    <li key={i} className="text-xs text-slate-700 flex gap-2">
+                      <span className="text-emerald-500 flex-shrink-0">✓</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="bg-rose-50 border border-rose-200 rounded-lg p-4">
+                <p className="text-xs font-medium text-rose-700 mb-2">What to Avoid</p>
+                <ul className="space-y-1.5">
+                  {commonAppRec.whatToAvoid.map((item, i) => (
+                    <li key={i} className="text-xs text-slate-600 flex gap-2">
+                      <span className="text-rose-400 flex-shrink-0">✗</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Hook Idea */}
+            {commonAppRec.exampleHook && (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                <p className="text-xs font-medium text-indigo-600 mb-2">💡 Hook Idea to Get Started</p>
+                <p className="text-sm text-slate-700">{commonAppRec.exampleHook}</p>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* School-Specific Analysis */}
+      <div className="space-y-6">
+        <div className="border-b border-slate-200 pb-6">
+          <h3 className="text-2xl font-semibold text-slate-900 mb-2">School-Specific Supplements</h3>
+          <p className="text-slate-500">
+            Click each school to see how to approach their supplemental essays.
+          </p>
+        </div>
+
+        {/* Expandable School Cards */}
+        {profile.targetSchools.map((school) => {
+          const fit = schoolFits.get(school.id)
+          if (!fit) return null
+
+          const tier = computeTier(profile, school, fit)
+          const topTraits = getTopTraits(fit.traitMatch)
+          const isExpanded = expandedSchool === school.id
+
+          // Get detailed info if expanded
+          let details = null
+          if (isExpanded) {
+            const tierRationale = getTierRationale(profile, school, tier, fit)
+            details = { tier, tierRationale }
+          }
+
+          return (
+            <div 
+              key={school.id} 
+              className={`border border-slate-200 rounded-2xl overflow-hidden shadow-sm transition-all ${
+                isExpanded ? 'ring-2 ring-slate-900' : ''
+              }`}
+            >
+              {/* Card Header - Always Visible */}
+              <button
+                onClick={() => setExpandedSchool(isExpanded ? null : school.id)}
+                className="w-full text-left px-6 py-5 bg-white hover:bg-slate-50 transition-colors flex justify-between items-start"
+              >
+                <div className="space-y-2 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-xs uppercase tracking-[0.25em] font-semibold px-2 py-1 rounded-md border ${TIER_COLORS.list[tier]}`}
+                    >
+                      {tier}
+                    </span>
+                    <span className="text-xs text-slate-400">{school.admissionRate.toFixed(1)}% admit</span>
                   </div>
+                  <h3 className="text-lg font-semibold text-slate-900">{school.name}</h3>
+                  <p className="text-sm text-slate-500">Strong in {topTraits.toLowerCase()}</p>
                 </div>
+                <div className="text-right flex-shrink-0 ml-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    {fit.overallFitScore}% fit
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">Percentile {fit.percentileRank}th</p>
+                  <ChevronDown className={`w-4 h-4 text-slate-400 mt-2 mx-auto transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                </div>
+              </button>
 
-                <div className="space-y-3">
-                  <div>
-                    <h5 className="font-semibold text-indigo-900 text-sm mb-1">
-                      {selectedAnalysis.essayIdea.title}
-                    </h5>
-                    <p className="text-sm text-slate-700 leading-relaxed">
-                      {selectedAnalysis.essayIdea.concept}
+              {/* Expanded Details - Inline */}
+              {isExpanded && details && (
+                <div className="bg-slate-50/50 border-t border-slate-200 px-6 py-6 space-y-6">
+                  {/* Dynamic Tier Explanation */}
+                  <div className={`p-4 rounded-xl border ${TIER_COLORS.detail[details.tier]}`}>
+                    <div className="flex items-start gap-3">
+                      <Target className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-semibold mb-1">
+                          Classified as <span className="uppercase tracking-wide">{details.tier}</span>
+                        </p>
+                        <p className="text-sm opacity-90">{details.tierRationale}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trait Matcher */}
+                  <TraitMatcher fit={fit} />
+
+                  {/* Percentile Info */}
+                  <div className="p-4 bg-white border border-slate-200 rounded-xl">
+                    <p className="text-slate-600 text-sm">
+                      <strong>Percentile rank:</strong> Your narrative profile is in the{' '}
+                      <span className="font-bold text-slate-900">{fit.percentileRank}th percentile</span>{' '}
+                      of admitted students at {school.name}
                     </p>
                   </div>
 
-                  <div className="bg-white/60 rounded-lg p-3 border border-indigo-100">
-                    <p className="text-xs font-medium text-indigo-600 mb-1">Why it stands out</p>
-                    <p className="text-sm text-slate-700">{selectedAnalysis.essayIdea.whyItStandsOut}</p>
-                  </div>
+                  {/* Essay Strategy - School-Specific Supplements Only */}
+                  {(() => {
+                    const strategy = generateSchoolEssayStrategy(narrative, school)
+                    if (!strategy) return null
 
-                  <div className="flex items-center gap-4 text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <Zap className="w-4 h-4 text-amber-500" />
-                      <span className="text-slate-600">Hardness:</span>
-                      <span className="font-semibold text-slate-900">
-                        {'⚡'.repeat(selectedAnalysis.essayIdea.hardness)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Target className="w-4 h-4 text-emerald-500" />
-                      <span className="text-slate-600">Impact:</span>
-                      <span className="font-semibold text-slate-900">
-                        {'⭐'.repeat(selectedAnalysis.essayIdea.effectiveness)}
-                      </span>
-                    </div>
-                  </div>
+                    return (
+                      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6 space-y-5">
+                        {/* Header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Sparkles className="w-5 h-5 text-indigo-600" />
+                            <h4 className="text-lg font-bold text-indigo-900">Supplemental Essays</h4>
+                          </div>
+                          <span className="text-xs bg-indigo-600 text-white px-3 py-1 rounded-full font-medium">
+                            {strategy.supplements.length} {strategy.supplements.length === 1 ? 'Essay' : 'Essays'}
+                          </span>
+                        </div>
 
-                  <div className="bg-white/60 rounded-lg p-3 border border-indigo-100">
-                    <p className="text-xs font-medium text-indigo-600 mb-2">Starter steps</p>
-                    <ol className="space-y-1.5 text-sm text-slate-700">
-                      {selectedAnalysis.essayIdea.starterSteps.map((step, idx) => (
-                        <li key={idx} className="flex gap-2">
-                          <span className="font-semibold text-indigo-600 flex-shrink-0">{idx + 1}.</span>
-                          <span>{step}</span>
-                        </li>
-                      ))}
-                    </ol>
+                        {/* Overall Strategy */}
+                        <div className="bg-white/70 rounded-xl p-4 border border-indigo-100">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Lightbulb className="w-4 h-4 text-amber-500" />
+                            <h5 className="text-sm font-semibold text-slate-900">Overall Approach</h5>
+                          </div>
+                          <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                            {strategy.overallStrategy}
+                          </p>
+                        </div>
+
+                        {/* Supplement Essays */}
+                        <div className="space-y-3">
+                          <h5 className="text-sm font-semibold text-indigo-900">School-Specific Supplements</h5>
+                          
+                          <div className="space-y-3">
+                            {strategy.supplements.map((supp, suppIdx) => (
+                              <div
+                                key={suppIdx}
+                                className="bg-white rounded-lg p-4 border border-slate-200 space-y-2"
+                              >
+                                <div className="flex justify-between items-start">
+                                  <p className="text-sm font-semibold text-slate-900">
+                                    Supplement {suppIdx + 1}
+                                  </p>
+                                  <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                                    {supp.wordLimit} words
+                                  </span>
+                                </div>
+
+                                <p className="text-sm text-slate-700 italic">{supp.prompt}</p>
+                                
+                                <div className="bg-indigo-50 border border-indigo-100 rounded p-3">
+                                  <p className="text-xs font-medium text-indigo-600 mb-1">Strategic Approach</p>
+                                  <p className="text-sm text-slate-700">{supp.strategicAngle}</p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 pt-2">
+                                  <div>
+                                    <p className="text-xs font-medium text-emerald-600 mb-1">Emphasize</p>
+                                    <ul className="space-y-0.5">
+                                      {supp.whatToEmphasize.slice(0, 2).map((item, i) => (
+                                        <li key={i} className="text-xs text-slate-600 flex gap-1">
+                                          <span>•</span>
+                                          <span>{item}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-medium text-red-600 mb-1">Avoid</p>
+                                    <ul className="space-y-0.5">
+                                      {supp.whatToAvoid.slice(0, 2).map((item, i) => (
+                                        <li key={i} className="text-xs text-slate-600 flex gap-1">
+                                          <span>•</span>
+                                          <span>{item}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Fit Assessment */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-4">
+                    <h4 className="font-semibold text-slate-900 mb-2">What this means</h4>
+                    <p className="text-slate-600 text-sm">{getFitAssessment(fit.overallFitScore)}</p>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* Fit Assessment */}
-            <div className="mt-6">
-              <h4 className="font-semibold text-slate-900 mb-3">What this means</h4>
-              <p className="text-slate-600">{getFitAssessment(selectedAnalysis.fit.overallFitScore)}</p>
+              )}
             </div>
-          </div>
-        </div>
-      )}
+          )
+        })}
+      </div>
     </div>
   )
 }

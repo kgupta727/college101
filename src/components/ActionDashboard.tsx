@@ -3,8 +3,7 @@
 import { Narrative, StudentProfile, Activity } from '@/types'
 import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
-import { Download, CheckCircle, Circle, CalendarCheck, Sparkles, Target, Zap, Trash2, Edit2 } from 'lucide-react'
-import { getEssayIdeas } from '@/lib/admissions-utils'
+import { Download, CheckCircle, Circle, CalendarCheck, Sparkles, Trash2, Edit2 } from 'lucide-react'
 
 interface ActionDashboardProps {
   narrative: Narrative
@@ -79,14 +78,6 @@ export default function ActionDashboard({
 
   const activityPruningList = narrative.recommendedDrops
 
-  const schoolSpecificEssays = profile.targetSchools.slice(0, 3).map((school) => ({
-    school: school.name,
-    prompt: 'Why do you want to attend?',
-    dueDate: `${Math.floor(monthsRemaining * 0.7)} weeks`,
-  }))
-
-  const essayIdeas = getEssayIdeas(narrative)
-
   const handleExportPDF = () => {
     // Simple CSV export for now
     const lines = [
@@ -102,9 +93,6 @@ export default function ActionDashboard({
       '',
       'ACTIVITIES TO CONSIDER DROPPING',
       ...narrative.recommendedDrops.map((a) => a.name),
-      '',
-      'ESSAY STRATEGY',
-      ...schoolSpecificEssays.map((s) => `${s.school}: ${s.prompt} (${s.dueDate})`),
     ]
 
     const csvContent = lines.join('\n')
@@ -293,80 +281,6 @@ export default function ActionDashboard({
           </div>
         </div>
       )}
-
-      {/* Essay Strategy */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-[0_18px_40px_rgba(15,23,42,0.06)] space-y-6">
-        <div className="flex items-center gap-3">
-          <Sparkles className="w-5 h-5 text-indigo-500" />
-          <h3 className="text-xl font-semibold text-slate-900">Essay Launch Kits</h3>
-        </div>
-        
-        {/* Essay Ideas */}
-        <div className="space-y-4">
-          {essayIdeas.map((idea, idx) => (
-            <div
-              key={idx}
-              className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-5 space-y-3"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
-                  <h4 className="text-indigo-900 font-semibold mb-1">{idea.title}</h4>
-                  <p className="text-slate-700 text-sm leading-relaxed">{idea.concept}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1 text-xs flex-shrink-0">
-                  <div className="flex items-center gap-1">
-                    <Zap className="w-3.5 h-3.5 text-amber-500" />
-                    <span className="font-semibold text-slate-900">{'⚡'.repeat(idea.hardness)}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Target className="w-3.5 h-3.5 text-emerald-500" />
-                    <span className="font-semibold text-slate-900">{'⭐'.repeat(idea.effectiveness)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/60 rounded-lg p-3 border border-indigo-100">
-                <p className="text-xs font-medium text-indigo-600 mb-1">Why it stands out</p>
-                <p className="text-sm text-slate-700">{idea.whyItStandsOut}</p>
-              </div>
-
-              <div className="bg-white/60 rounded-lg p-3 border border-indigo-100">
-                <p className="text-xs font-medium text-indigo-600 mb-2">Starter steps</p>
-                <ol className="space-y-1.5 text-sm text-slate-700">
-                  {idea.starterSteps.map((step, stepIdx) => (
-                    <li key={stepIdx} className="flex gap-2">
-                      <span className="font-semibold text-indigo-600 flex-shrink-0">{stepIdx + 1}.</span>
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* School-Specific Essays */}
-        <div className="pt-4 border-t border-slate-200 space-y-3">
-          <h4 className="text-sm font-medium text-slate-600">School-specific supplements</h4>
-          {schoolSpecificEssays.map((essay, idx) => (
-            <div
-              key={idx}
-              className="rounded-xl border border-slate-200 bg-slate-50/70 p-4"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <h5 className="text-slate-900 font-semibold">{essay.school}</h5>
-                <span className="text-xs text-slate-500">Due in {essay.dueDate}</span>
-              </div>
-              <p className="text-slate-700 text-sm mb-3">{essay.prompt}</p>
-              <div className="bg-emerald-50 border border-emerald-100 p-3 rounded text-emerald-700 text-sm">
-                <strong>Narrative alignment:</strong> Emphasize how{' '}
-                <em>{narrative.title}</em> demonstrates the traits{' '}
-                {essay.school} values most.
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Action Plan Summary */}
       <div className="bg-gradient-to-r from-emerald-50 to-cyan-50 border border-emerald-100 rounded-2xl p-6 space-y-3 shadow-[0_18px_40px_rgba(16,185,129,0.12)]">
