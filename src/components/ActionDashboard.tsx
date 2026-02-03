@@ -1,7 +1,7 @@
 'use client'
 
 import { Narrative, StudentProfile, Activity } from '@/types'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import { Download, CheckCircle, Circle, CalendarCheck, Sparkles, Target, Zap, Trash2, Edit2 } from 'lucide-react'
 import { getEssayIdeas } from '@/lib/admissions-utils'
@@ -10,12 +10,14 @@ interface ActionDashboardProps {
   narrative: Narrative
   profile: StudentProfile
   onProfileUpdate?: (profile: StudentProfile) => void
+  onComplete?: () => void
 }
 
 export default function ActionDashboard({
   narrative,
   profile,
   onProfileUpdate,
+  onComplete,
 }: ActionDashboardProps) {
   const [completedMilestones, setCompletedMilestones] = useState<Set<string>>(
     new Set()
@@ -24,6 +26,11 @@ export default function ActionDashboard({
   const [editActivityName, setEditActivityName] = useState('')
   const [editActivityHours, setEditActivityHours] = useState(0)
   const [editActivityDescription, setEditActivityDescription] = useState('')
+
+  // Mark action plan as complete when component mounts
+  useEffect(() => {
+    onComplete?.()
+  }, [onComplete])
 
   const toggleMilestone = (id: string) => {
     const updated = new Set(completedMilestones)
