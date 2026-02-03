@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import ActionDashboard from '@/components/ActionDashboard'
 import { Narrative, StudentProfile } from '@/types'
 
@@ -21,7 +20,7 @@ export default function ActionPlanStep({
   onProfileUpdate,
   onComplete,
 }: ActionPlanStepProps) {
-  const [isLocked] = useState(true)
+  const isLocked = true
 
   return (
     <div className="relative rounded-3xl border border-slate-200 bg-white/85 shadow-[0_24px_60px_rgba(15,23,42,0.08)] p-6">
