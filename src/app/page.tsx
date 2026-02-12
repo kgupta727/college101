@@ -88,19 +88,6 @@ export default function Home() {
               </Link>
             </div>
 
-            <dl className="mt-14 grid grid-cols-2 md:grid-cols-4 gap-6 text-left">
-              {[
-                { label: 'Narratives generated', value: '12,400+' },
-                { label: 'Schools tracked', value: '180+' },
-                { label: 'Avg. review time saved', value: '28 hrs' },
-                { label: 'Essay prompts surfaced', value: '320+' },
-              ].map((stat) => (
-                <div key={stat.label} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                  <dt className="text-xs uppercase tracking-[0.2em] text-slate-400">{stat.label}</dt>
-                  <dd className="mt-3 text-2xl font-semibold text-slate-900">{stat.value}</dd>
-                </div>
-              ))}
-            </dl>
           </section>
 
           <section id="features" className="grid md:grid-cols-3 gap-6">
