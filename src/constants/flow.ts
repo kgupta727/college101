@@ -14,7 +14,7 @@ export const FLOW_STEPS: StepConfig[] = [
   { key: 'profile', label: 'Profile' },
   { key: 'narratives', label: 'Narratives' },
   { key: 'schoolFit', label: 'School Fit' },
-  { key: 'actionPlan', label: 'Action Plan' },
+  { key: 'actionPlan', label: 'Essay Library' },
 ]
 
 /**

@@ -26,19 +26,29 @@ export interface MultiEssayStrategy {
   coherenceNotes: string[]
 }
 
+export interface SupplementPrompt {
+  id: string
+  prompt: string
+  wordLimit: number
+  type: string
+  schoolValues?: readonly string[]
+  strategicFocus?: string
+}
+
 /**
  * Generate comprehensive essay strategy for a specific school
  */
 export function generateSchoolEssayStrategy(
   narrative: Narrative,
-  school: School
+  school: School,
+  supplementsOverride?: SupplementPrompt[] | null
 ): MultiEssayStrategy | null {
   // Extract school name (e.g., "Stanford" from "Stanford University")
   const schoolNameBase = school.name.split(' ')[0].toLowerCase() as SchoolName
   
   // Get school supplements
-  const supplements = SCHOOL_SUPPLEMENTS[schoolNameBase]
-  if (!supplements) {
+  const supplements = supplementsOverride ?? SCHOOL_SUPPLEMENTS[schoolNameBase]
+  if (!supplements || supplements.length === 0) {
     return null
   }
 
@@ -115,7 +125,7 @@ export function selectCommonAppPrompt(narrative: Narrative): EssayRecommendation
  * Generate recommendation for school-specific supplement
  */
 function generateSupplementRecommendation(
-  supplement: typeof SCHOOL_SUPPLEMENTS[SchoolName][number],
+  supplement: SupplementPrompt,
   narrative: Narrative,
   school: School
 ): EssayRecommendation {
@@ -124,7 +134,7 @@ function generateSupplementRecommendation(
     prompt: supplement.prompt,
     wordLimit: supplement.wordLimit,
     type: supplement.type,
-    strategicAngle: supplement.strategicFocus,
+    strategicAngle: supplement.strategicFocus || getSupplementStrategicFocus(supplement.type, narrative),
     narrativeConnection: connectSupplementToNarrative(supplement, narrative, school),
     whatToEmphasize: getSupplementEmphasis(supplement.type, narrative, school),
     whatToAvoid: getSupplementAvoidances(supplement.type),
@@ -259,7 +269,7 @@ function generateExampleHook(type: string, narrative: Narrative): string {
  * Connect supplement prompt to narrative
  */
 function connectSupplementToNarrative(
-  supplement: typeof SCHOOL_SUPPLEMENTS[SchoolName][number],
+  supplement: SupplementPrompt,
   narrative: Narrative,
   school: School
 ): string {
@@ -383,9 +393,126 @@ function getSupplementEmphasis(type: string, narrative: Narrative, school: Schoo
       'One deep interest or experience',
       'Your passion and what you\'ve learned',
       'How this shapes who you are'
+    ],
+    'personal': [
+      'Genuine personality and quirks',
+      'Real stories that reveal character',
+      'Authenticity over perfection'
+    ],
+    'innovation': [
+      'Your creative process',
+      'What you built or invented',
+      'What you learned from making'
+    ],
+    'why-major': [
+      'Specific experiences that sparked interest',
+      'How you\'ve explored the field',
+      `Why ${school.name} is the right place`
+    ],
+    'challenge': [
+      'The obstacle and your response',
+      'Problem-solving approach',
+      'Growth and lessons learned'
+    ],
+    'background': [
+      'How your environment shaped you',
+      'Values developed from context',
+      'Connection to your aspirations'
+    ],
+    'activities': [
+      'Depth over breadth',
+      'Impact and leadership',
+      'What this activity taught you'
+    ],
+    'creative': [
+      'Your unique perspective',
+      'Intellectual risk-taking',
+      'Creative thinking process'
+    ],
+    'creativity': [
+      'Your unique perspective',
+      'Intellectual risk-taking',
+      'Creative thinking process'
+    ],
+    'academic-interest': [
+      'Genuine curiosity about the field',
+      'Specific academic experiences',
+      `How you\'ll pursue it at ${school.name}`
+    ],
+    'academic-preparation': [
+      'Depth of subject knowledge',
+      'How you\'ve challenged yourself',
+      'Readiness for advanced work'
+    ],
+    'goals': [
+      'Clear vision for the future',
+      `Specific ${school.name} resources`,
+      'Realistic pathway to goals'
+    ],
+    'gratitude': [
+      'Specific person and actions',
+      'Why they deserve thanks',
+      'How they impacted you'
+    ],
+    'values': [
+      'One core value with examples',
+      'How you live this value',
+      'Connection to your narrative'
+    ],
+    'service': [
+      'Sustained commitment',
+      'Concrete impact on others',
+      'Connection to larger purpose'
+    ],
+    'diversity': [
+      'Your unique perspective',
+      'How you\'ve engaged with difference',
+      'What you\'ll contribute to campus'
     ]
   }
   return emphasize[type] || ['Authenticity', 'Specific examples', 'Connection to school values']
+}
+
+function getSupplementStrategicFocus(type: string, narrative: Narrative): string {
+  const focus: Record<string, string> = {
+    'intellectual-vitality': 'Show genuine intellectual excitement tied to a specific question or experience.',
+    'personal-voice': 'Be authentic and personable. Reveal values, quirks, and daily habits that feel real.',
+    'values-identity': 'Choose something deeply meaningful and explain why it matters to you.',
+    'diversity-contribution': 'Connect your lived experiences to the contribution you will make in community.',
+    'service-impact': 'Highlight a concrete action and its ripple effects on others.',
+    'goals-fit': 'Pair your goals with specific campus resources that make them realistic.',
+    'background-context': 'Explain how your context shaped how you think and what you care about.',
+    'collaboration-community': 'Focus on collaboration over solo achievement. Show what you learned with others.',
+    'resilience-problemSolving': 'Emphasize your problem-solving process and growth, not just the obstacle.',
+    'why-school': 'Be highly specific about programs, people, and opportunities you will engage with.',
+    'inspiration-motivation': 'Show a genuine source of inspiration and how it changed your direction.',
+    'intellectual-engagement': 'Highlight how you explore ideas beyond class and how that curiosity evolved.',
+    'community-perspective': 'Share a perspective you will bring to conversations and how you will engage others.',
+    'service-responsibility': 'Connect a personal story to a larger responsibility you have taken on.',
+    'intellectual-life': 'Show what you read, watch, or explore and how it shapes your thinking.',
+    'curiosity-exploration': 'Highlight the outlets you use to learn and why they matter to you.',
+    'gratitude-relationships': 'Be specific, heartfelt, and show how gratitude changed your behavior.',
+    'community-fit': 'Explain what you will contribute and how you will grow in the community.',
+    'academic-exploration': 'Show what you would pursue and how you would take advantage of academic freedom.',
+    'meaningful-interest': 'Go deep on one interest and show how it has shaped you over time.',
+    'personal': 'Reveal your authentic personality, quirks, and values through specific stories.',
+    'innovation': 'Show your creative process, what you made, and what you learned from inventing.',
+    'why-major': 'Connect specific experiences to genuine passion for the field and school resources.',
+    'challenge': 'Focus on your problem-solving approach and what you learned from the obstacle.',
+    'background': 'Explain how your environment shaped your thinking, values, and aspirations.',
+    'activities': 'Show depth, impact, and what this activity taught you about yourself.',
+    'creative': 'Take intellectual risks and show your unique creative thinking process.',
+    'creativity': 'Take intellectual risks and show your unique creative thinking process.',
+    'academic-interest': 'Demonstrate genuine curiosity and how you\'ve explored the field deeply.',
+    'academic-preparation': 'Show subject mastery and readiness for rigorous upper-division work.',
+    'goals': 'Connect clear future vision to specific school resources and realistic pathways.',
+    'gratitude': 'Be specific about who helped you, what they did, and how they changed you.',
+    'values': 'Choose one core value, show how you live it, and connect to your narrative.',
+    'service': 'Highlight sustained commitment, concrete impact, and larger purpose.',
+    'diversity': 'Share your unique perspective and what you\'ll contribute to campus diversity.',
+  }
+
+  return focus[type] || `Connect this prompt to your core narrative: ${narrative.title}.`
 }
 
 /**
@@ -492,6 +619,81 @@ function getSupplementAvoidances(type: string): string[] {
       'Choosing something superficial',
       'Not showing genuine passion or depth',
       'Not connecting to your narrative'
+    ],
+    'personal': [
+      'Being too formal or inauthentic',
+      'Sharing inappropriate details',
+      'Not revealing personality or values'
+    ],
+    'innovation': [
+      'Just describing not creating',
+      'Exaggerating the innovation',
+      'Not showing your process or learning'
+    ],
+    'why-major': [
+      'Generic interest in the field',
+      'Not connecting to specific experiences',
+      'Mentioning prestige over passion'
+    ],
+    'challenge': [
+      'Trivial or fabricated obstacles',
+      'Blaming others without reflection',
+      'Not showing what you learned'
+    ],
+    'background': [
+      'Listing facts without meaning',
+      'Being a victim without agency',
+      'Not connecting to your dreams'
+    ],
+    'activities': [
+      'Just listing what you did',
+      'Not showing impact or growth',
+      'Repeating your activities list'
+    ],
+    'creative': [
+      'Playing it too safe',
+      'Not showing your thinking process',
+      'Missing the intellectual angle'
+    ],
+    'creativity': [
+      'Playing it too safe',
+      'Not showing your thinking process',
+      'Missing the intellectual angle'
+    ],
+    'academic-interest': [
+      'Generic subject enthusiasm',
+      'Not connecting to experiences',
+      'Vague future plans'
+    ],
+    'academic-preparation': [
+      'Just listing courses taken',
+      'Not showing depth of understanding',
+      'Exaggerating your expertise'
+    ],
+    'goals': [
+      'Vague career aspirations',
+      'Not connecting to school resources',
+      'Unrealistic or generic goals'
+    ],
+    'gratitude': [
+      'Generic thank you (teacher, parent)',
+      'Being overly sentimental',
+      'Not being specific about impact'
+    ],
+    'values': [
+      'Abstract values without examples',
+      'Common values everyone claims',
+      'Not showing how you live them'
+    ],
+    'service': [
+      'One-time volunteer hour padding',
+      'Savior complex tone',
+      'Not showing sustained commitment'
+    ],
+    'diversity': [
+      'Generic diversity statements',
+      'Victim narrative without agency',
+      'Not showing what you\'ll contribute'
     ]
   }
   return avoidances[type] || ['Being generic', 'Repeating Common App content', 'Not being specific to this school']
@@ -501,7 +703,7 @@ function getSupplementAvoidances(type: string): string[] {
  * Generate example hook for supplement
  */
 function generateSupplementHook(
-  supplement: typeof SCHOOL_SUPPLEMENTS[SchoolName][number],
+  supplement: SupplementPrompt,
   narrative: Narrative,
   school: School
 ): string {

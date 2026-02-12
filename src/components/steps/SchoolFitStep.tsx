@@ -60,7 +60,7 @@ export default function SchoolFitStep({
           onClick={onProceedToActionPlan}
           className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg"
         >
-          Create Action Plan →
+          Start Writing Essays
         </Button>
       </div>
     </div>

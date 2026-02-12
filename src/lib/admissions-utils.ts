@@ -84,7 +84,7 @@ export function computeTier(
 export function getTierRationale(
   profile: StudentProfile,
   school: School,
-  tier: 'Reach' | 'Target' | 'Safety',
+  tier: 'Reach' | 'Target' | 'Safety' | 'N/A',
   fit?: SchoolFit
 ): string {
   const { academicProfile } = profile
@@ -92,6 +92,11 @@ export function getTierRationale(
   const testScore = academicProfile.testScores.sat || academicProfile.testScores.act
 
   const reasons: string[] = []
+
+  // N/A tier - insufficient data
+  if (tier === 'N/A') {
+    return 'Admission rate data not available. Unable to categorize this school automatically.'
+  }
 
   // Admission rate factor
   if (admissionRate < 10) {

@@ -29,7 +29,7 @@ export interface AcademicProfile {
 export interface School {
   id: string
   name: string
-  tier: 'Reach' | 'Target' | 'Safety'
+  tier: 'Reach' | 'Target' | 'Safety' | 'N/A'
   satRange: [number, number]
   actRange: [number, number]
   admissionRate: number

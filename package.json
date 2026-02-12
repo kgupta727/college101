@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "sync:colleges": "node scripts/sync-colleges.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
@@ -22,6 +23,7 @@
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
     "shadcn-ui": "^0.9.5",
+    "supabase": "^2.76.8",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

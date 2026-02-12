@@ -5,13 +5,21 @@ import { useEffect, useState, useMemo } from 'react'
 import { analyzeSchoolFitAction } from '@/actions/analyzeSchoolFit'
 import TraitMatcher from './TraitMatcher'
 import { computeTier, getTierRationale } from '@/lib/admissions-utils'
-import { generateSchoolEssayStrategy, MultiEssayStrategy, selectCommonAppPrompt } from '@/lib/essay-strategy'
+import { generateSchoolEssayStrategy, selectCommonAppPrompt, SupplementPrompt } from '@/lib/essay-strategy'
 import { Sparkles, Target, Zap, ChevronDown, BookOpen, Lightbulb } from 'lucide-react'
 
 interface SchoolFitAnalysisProps {
   narrative: Narrative
   profile: StudentProfile
   onComplete?: () => void
+}
+
+type SupplementDraft = {
+  prompt: string
+  wordLimit: string
+  promptType: string
+  sourceUrl: string
+  status?: string
 }
 
 // Tier color constants - extracted to avoid recalculation
@@ -60,6 +68,11 @@ export default function SchoolFitAnalysis({
   const [schoolFits, setSchoolFits] = useState<Map<string, SchoolFit>>(new Map())
   const [loading, setLoading] = useState(true)
   const [expandedSchool, setExpandedSchool] = useState<string | null>(null)
+  const [supplementsBySchool, setSupplementsBySchool] = useState<Map<string, SupplementPrompt[]>>(new Map())
+  const [supplementErrors, setSupplementErrors] = useState<Map<string, string>>(new Map())
+  const [supplementLoadingBySchool, setSupplementLoadingBySchool] = useState<Map<string, boolean>>(new Map())
+  const [supplementDrafts, setSupplementDrafts] = useState<Record<string, SupplementDraft>>({})
+  const [expandedSupplementForm, setExpandedSupplementForm] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     const analyzeAllSchools = async () => {
@@ -118,6 +131,98 @@ export default function SchoolFitAnalysis({
 
     analyzeAllSchools()
   }, [narrative.id, profile.targetSchools.length, onComplete])
+
+  useEffect(() => {
+    const fetchSupplements = async (schoolId: string) => {
+      if (supplementsBySchool.has(schoolId)) return
+
+      setSupplementLoadingBySchool((prev) => new Map(prev).set(schoolId, true))
+      setSupplementErrors((prev) => new Map(prev).set(schoolId, ''))
+
+      try {
+        const response = await fetch(`/api/colleges/${schoolId}/supplements`)
+        if (!response.ok) throw new Error('Unable to load supplements')
+
+        const payload = await response.json()
+        const supplements: SupplementPrompt[] = (payload.supplements || []).map((item: any) => ({
+          id: item.id,
+          prompt: item.prompt,
+          wordLimit: item.word_limit || 0,
+          type: item.prompt_type || 'open-topic',
+          schoolValues: item.school_values || [],
+          strategicFocus: item.strategic_focus || '',
+        }))
+
+        setSupplementsBySchool((prev) => {
+          const updated = new Map(prev)
+          updated.set(schoolId, supplements)
+          return updated
+        })
+      } catch (error) {
+        setSupplementErrors((prev) => new Map(prev).set(schoolId, 'Unable to load supplements right now.'))
+      } finally {
+        setSupplementLoadingBySchool((prev) => new Map(prev).set(schoolId, false))
+      }
+    }
+
+    if (expandedSchool) {
+      fetchSupplements(expandedSchool)
+    }
+  }, [expandedSchool, supplementsBySchool])
+
+  const updateSupplementDraft = (schoolId: string, updates: Partial<SupplementDraft>) => {
+    setSupplementDrafts((prev) => ({
+      ...prev,
+      [schoolId]: {
+        ...(prev[schoolId] || {
+          prompt: '',
+          wordLimit: '',
+          promptType: '',
+          sourceUrl: '',
+          status: '',
+        }),
+        ...updates,
+      },
+    }))
+  }
+
+  const submitSupplement = async (schoolId: string) => {
+    const draft = supplementDrafts[schoolId]
+    if (!draft?.prompt?.trim()) {
+      updateSupplementDraft(schoolId, { status: 'Please paste the prompt first.' })
+      return
+    }
+
+    updateSupplementDraft(schoolId, { status: 'Submitting...' })
+
+    try {
+      const response = await fetch(`/api/colleges/${schoolId}/supplements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: draft.prompt.trim(),
+          wordLimit: draft.wordLimit ? Number(draft.wordLimit) : null,
+          promptType: draft.promptType.trim() || null,
+          sourceUrl: draft.sourceUrl.trim() || null,
+        }),
+      })
+
+      if (!response.ok) {
+        const payload = await response.json()
+        throw new Error(payload?.error || 'Failed to submit supplement')
+      }
+
+      updateSupplementDraft(schoolId, {
+        prompt: '',
+        wordLimit: '',
+        promptType: '',
+        sourceUrl: '',
+        status: 'Thanks! We will add this prompt soon.',
+      })
+    } catch (error: any) {
+      updateSupplementDraft(schoolId, { status: error.message || 'Failed to submit supplement' })
+    }
+  }
 
   if (loading) {
     return (
@@ -265,7 +370,9 @@ export default function SchoolFitAnalysis({
                     >
                       {tier}
                     </span>
-                    <span className="text-xs text-slate-400">{school.admissionRate.toFixed(1)}% admit</span>
+                    <span className="text-xs text-slate-400">
+                      {school.admissionRate > 0 ? `${school.admissionRate.toFixed(1)}% admit` : 'Admission rate N/A'}
+                    </span>
                   </div>
                   <h3 className="text-lg font-semibold text-slate-900">{school.name}</h3>
                   <p className="text-sm text-slate-500">Strong in {topTraits.toLowerCase()}</p>
@@ -310,8 +417,89 @@ export default function SchoolFitAnalysis({
 
                   {/* Essay Strategy - School-Specific Supplements Only */}
                   {(() => {
-                    const strategy = generateSchoolEssayStrategy(narrative, school)
-                    if (!strategy) return null
+                    const supplementsLoaded = supplementsBySchool.has(school.id)
+                    const supplements = supplementsBySchool.get(school.id) || null
+                    const supplementError = supplementErrors.get(school.id)
+                    const supplementLoading = supplementLoadingBySchool.get(school.id)
+                    const draft = supplementDrafts[school.id] || {
+                      prompt: '',
+                      wordLimit: '',
+                      promptType: '',
+                      sourceUrl: '',
+                      status: '',
+                    }
+
+                    const strategy = supplementsLoaded
+                      ? generateSchoolEssayStrategy(narrative, school, supplements)
+                      : generateSchoolEssayStrategy(narrative, school)
+
+                    if (supplementLoading) {
+                      return (
+                        <div className="rounded-2xl border border-indigo-200 bg-white p-6 text-sm text-slate-500">
+                          Loading supplement prompts...
+                        </div>
+                      )
+                    }
+
+                    if (supplementError) {
+                      return (
+                        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-600">
+                          {supplementError}
+                        </div>
+                      )
+                    }
+
+                    if (!strategy) {
+                      return (
+                        <div className="rounded-2xl border border-indigo-200 bg-white p-6 space-y-4">
+                          <div>
+                            <h4 className="text-lg font-semibold text-indigo-900">No supplements found yet</h4>
+                            <p className="text-sm text-slate-600">
+                              If this school has supplements, paste them below and we will add them for everyone.
+                            </p>
+                          </div>
+
+                          <div className="space-y-3">
+                            <textarea
+                              value={draft.prompt}
+                              onChange={(event) => updateSupplementDraft(school.id, { prompt: event.target.value })}
+                              placeholder="Paste the supplement prompt..."
+                              className="w-full min-h-[120px] rounded-lg border border-slate-200 p-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                              <input
+                                value={draft.wordLimit}
+                                onChange={(event) => updateSupplementDraft(school.id, { wordLimit: event.target.value })}
+                                placeholder="Word limit (optional)"
+                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                              />
+                              <input
+                                value={draft.promptType}
+                                onChange={(event) => updateSupplementDraft(school.id, { promptType: event.target.value })}
+                                placeholder="Prompt type (optional)"
+                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                              />
+                            </div>
+                            <input
+                              value={draft.sourceUrl}
+                              onChange={(event) => updateSupplementDraft(school.id, { sourceUrl: event.target.value })}
+                              placeholder="Source URL (optional)"
+                              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => submitSupplement(school.id)}
+                              className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                            >
+                              Submit prompt
+                            </button>
+                            {draft.status && (
+                              <p className="text-sm text-indigo-700">{draft.status}</p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    }
 
                     return (
                       <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6 space-y-5">
@@ -352,7 +540,7 @@ export default function SchoolFitAnalysis({
                                     Supplement {suppIdx + 1}
                                   </p>
                                   <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
-                                    {supp.wordLimit} words
+                                    {supp.wordLimit ? `${supp.wordLimit} words` : 'Word limit N/A'}
                                   </span>
                                 </div>
 
@@ -390,6 +578,66 @@ export default function SchoolFitAnalysis({
                               </div>
                             ))}
                           </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedSupplementForm(prev => ({ ...prev, [school.id]: !prev[school.id] }))}
+                            className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-slate-600">Missing a prompt?</span>
+                              <span className="text-xs text-slate-400">Click to add</span>
+                            </div>
+                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${
+                              expandedSupplementForm[school.id] ? 'rotate-180' : ''
+                            }`} />
+                          </button>
+                          
+                          {expandedSupplementForm[school.id] && (
+                            <div className="border-t border-slate-100 p-4 space-y-3">
+                              <p className="text-xs text-slate-600">
+                                Paste any additional supplements so we can add them to the database.
+                              </p>
+                              <textarea
+                                value={draft.prompt}
+                                onChange={(event) => updateSupplementDraft(school.id, { prompt: event.target.value })}
+                                placeholder="Paste the supplement prompt..."
+                                className="w-full min-h-[100px] rounded-lg border border-slate-200 p-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                              />
+                              <div className="grid grid-cols-2 gap-3">
+                                <input
+                                  value={draft.wordLimit}
+                                  onChange={(event) => updateSupplementDraft(school.id, { wordLimit: event.target.value })}
+                                  placeholder="Word limit (optional)"
+                                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                                />
+                                <input
+                                  value={draft.promptType}
+                                  onChange={(event) => updateSupplementDraft(school.id, { promptType: event.target.value })}
+                                  placeholder="Prompt type (optional)"
+                                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                                />
+                              </div>
+                              <input
+                                value={draft.sourceUrl}
+                                onChange={(event) => updateSupplementDraft(school.id, { sourceUrl: event.target.value })}
+                                placeholder="Source URL (optional)"
+                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => submitSupplement(school.id)}
+                                className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                              >
+                                Submit prompt
+                              </button>
+                              {draft.status && (
+                                <p className="text-sm text-indigo-700">{draft.status}</p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )

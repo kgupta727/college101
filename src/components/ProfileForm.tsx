@@ -8,7 +8,6 @@ import SchoolsStep from './steps/SchoolsStep'
 import ConstraintsStep from './steps/ConstraintsStep'
 import { Button } from './ui/button'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { SCHOOLS_DATABASE } from '@/constants/schools'
 
 type Step = 'activities' | 'academic' | 'schools' | 'constraints' | 'review'
 
@@ -119,7 +118,7 @@ export default function ProfileForm({ onComplete, initialProfile, onStepComplete
             <AcademicStep profile={profile} updateProfile={updateProfile} />
           )}
           {currentStep === 'schools' && (
-            <SchoolsStep profile={profile} updateProfile={updateProfile} allSchools={SCHOOLS_DATABASE} />
+            <SchoolsStep profile={profile} updateProfile={updateProfile} />
           )}
           {currentStep === 'constraints' && (
             <ConstraintsStep profile={profile} updateProfile={updateProfile} />
