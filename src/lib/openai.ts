@@ -240,3 +240,113 @@ Return ONLY valid JSON.`
     throw new Error('Failed to analyze school fit')
   }
 }
+
+type EssayIdeaInput = {
+  profile: StudentProfile
+  essayType: 'common_app' | 'supplement'
+  collegeName?: string
+  supplementPrompt?: string
+  supplementPromptType?: string
+  supplementWordLimit?: number | null
+  commonAppPromptNumber?: number | null
+  commonAppPromptText?: string | null
+  userContext?: string | null
+  existingIdeas?: Array<{
+    title: string
+    idea_text: string
+    angle_type?: string | null
+  }>
+}
+
+export async function generateEssayIdeas(input: EssayIdeaInput) {
+  const activitiesText = input.profile.activities
+    .map((a) => {
+      const tags = a.tags.length > 0 ? `Tags: ${a.tags.join(', ')}` : 'Tags: none'
+      const role = a.role ? `Role: ${a.role}` : 'Role: none'
+      const hours = a.hoursPerWeek ? `${a.hoursPerWeek} hrs/week` : 'Hours: N/A'
+      const years = a.yearsInvolved ? `${a.yearsInvolved} years` : 'Years: N/A'
+      const desc = a.description ? `Notes: ${a.description}` : ''
+      return `- ${a.name}. ${role}. ${hours}. ${years}. ${tags}. ${desc}`
+    })
+    .join('\n')
+
+  const academicText = `GPA: ${input.profile.academicProfile.gpa}. SAT: ${input.profile.academicProfile.testScores.sat || 'N/A'}. ACT: ${input.profile.academicProfile.testScores.act || 'N/A'}. Intended majors: ${input.profile.academicProfile.intendedMajors.join(', ') || 'N/A'}. Academic interests: ${input.profile.academicProfile.academicInterests || 'N/A'}.`
+
+  const existingIdeasText = (input.existingIdeas || [])
+    .map((idea, idx) => `#${idx + 1}: ${idea.title} | Angle: ${idea.angle_type || 'N/A'} | ${idea.idea_text}`)
+    .join('\n')
+
+  const prompt = `You are an elite admissions essay idea generator.
+
+TASK:
+Generate 3-5 EXTREMELY NICHE, SPECIFIC, and DISTINCT essay ideas based on the student's activities and personality. Avoid generic advice and avoid repeating prior ideas.
+
+OUTPUT REQUIREMENTS:
+- Every idea must be unique in angle, activity focus, and emotional texture.
+- Include a mix of EASY, MEDIUM, and HARD ideas.
+- Ideas must be grounded in the student's actual activities and details.
+- Each idea must identify its proof points (activities/achievements used).
+- If an idea is ambitious or hard to pull off, label it clearly.
+
+STUDENT PROFILE:
+${academicText}
+
+ACTIVITIES:
+${activitiesText}
+
+ESSAY CONTEXT:
+- Essay type: ${input.essayType}
+- College: ${input.collegeName || 'N/A'}
+- Supplement prompt type: ${input.supplementPromptType || 'N/A'}
+- Supplement prompt: ${input.supplementPrompt || 'N/A'}
+- Supplement word limit: ${input.supplementWordLimit || 'N/A'}
+- Common App prompt #: ${input.commonAppPromptNumber || 'N/A'}
+- Common App prompt text: ${input.commonAppPromptText || 'N/A'}
+
+EXTRA CONTEXT FROM USER (optional):
+${input.userContext || 'N/A'}
+
+PAST IDEAS TO AVOID REPEATING:
+${existingIdeasText || 'None'}
+
+Return ONLY valid JSON array with 3-5 objects in this format:
+[
+  {
+    "title": "string",
+    "idea_text": "2-4 sentences describing the idea",
+    "angle_type": "origin story | contradiction | transformation | unexpected expertise | tiny moment | values test | intellectual obsession | community imprint | other",
+    "risk_level": "low | medium | high",
+    "difficulty": "easy | medium | hard",
+    "proof_points": ["activity/achievement evidence"],
+    "uniqueness_rationale": "1-2 sentences why this is distinct for this student"
+  }
+]
+`
+
+  const message = await client.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{ role: 'user', content: prompt }],
+  })
+
+  const content = message.choices[0]?.message?.content
+  if (!content) {
+    throw new Error('No response content from OpenAI')
+  }
+
+  const cleanedContent = content
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/, '')
+    .replace(/```\s*$/, '')
+    .trim()
+
+  try {
+    const ideaData = JSON.parse(cleanedContent)
+    if (!Array.isArray(ideaData)) {
+      throw new Error('Idea response was not an array')
+    }
+    return ideaData
+  } catch (error) {
+    console.error('Error parsing idea response:', error)
+    throw new Error('OpenAI returned invalid JSON for ideas. Please try again.')
+  }
+}

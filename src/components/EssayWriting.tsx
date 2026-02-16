@@ -70,6 +70,18 @@ interface College {
   supplements: Supplement[]
 }
 
+interface EssayIdea {
+  id: string
+  title: string
+  idea_text: string
+  angle_type: string | null
+  risk_level: string | null
+  difficulty: string | null
+  proof_points: string[]
+  uniqueness_rationale: string | null
+  created_at: string
+}
+
 export default function EssayWritingPage({ profile }: { profile: StudentProfile }) {
   const [colleges, setColleges] = useState<College[]>([])
   const [drafts, setDrafts] = useState<EssayDraft[]>([])
@@ -80,6 +92,11 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
   })
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [ideas, setIdeas] = useState<EssayIdea[]>([])
+  const [ideaContext, setIdeaContext] = useState('')
+  const [ideasLoading, setIdeasLoading] = useState(false)
+  const [ideasGenerating, setIdeasGenerating] = useState(false)
+  const [ideasError, setIdeasError] = useState<string | null>(null)
 
   useEffect(() => {
     loadData()
@@ -207,6 +224,81 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
       // Create new draft
       await createDraft(essay_type, college_id, supplement_id)
     }
+  }
+
+  useEffect(() => {
+    if (!activeDraft) {
+      setIdeas([])
+      return
+    }
+
+    loadIdeas(activeDraft)
+  }, [activeDraft?.id, activeDraft?.essay_type, activeDraft?.supplement_id, activeDraft?.common_app_prompt_number])
+
+  const loadIdeas = async (draft: EssayDraft) => {
+    setIdeasLoading(true)
+    setIdeasError(null)
+    setIdeas([])
+
+    if (draft.essay_type === 'common_app' && !draft.common_app_prompt_number) {
+      setIdeasLoading(false)
+      return
+    }
+
+    const params = new URLSearchParams({
+      essay_type: draft.essay_type,
+    })
+
+    if (draft.essay_type === 'supplement') {
+      if (draft.college_id) params.set('college_id', draft.college_id)
+      if (draft.supplement_id) params.set('supplement_id', draft.supplement_id)
+    } else if (draft.common_app_prompt_number) {
+      params.set('common_app_prompt_number', String(draft.common_app_prompt_number))
+    }
+
+    const response = await fetch(`/api/essay-ideas?${params.toString()}`)
+    if (response.ok) {
+      const { ideas: loadedIdeas } = await response.json()
+      setIdeas(loadedIdeas)
+    } else {
+      setIdeasError('Failed to load ideas.')
+    }
+
+    setIdeasLoading(false)
+  }
+
+  const generateIdeas = async () => {
+    if (!activeDraft) return
+
+    if (activeDraft.essay_type === 'common_app' && !activeDraft.common_app_prompt_number) {
+      setIdeasError('Select a Common App prompt before generating ideas.')
+      return
+    }
+
+    setIdeasGenerating(true)
+    setIdeasError(null)
+
+    const response = await fetch('/api/essay-ideas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        essay_type: activeDraft.essay_type,
+        college_id: activeDraft.college_id,
+        supplement_id: activeDraft.supplement_id,
+        common_app_prompt_number: activeDraft.common_app_prompt_number,
+        user_context: ideaContext.trim() || null,
+      }),
+    })
+
+    if (response.ok) {
+      const { ideas: newIdeas } = await response.json()
+      setIdeas(newIdeas)
+    } else {
+      const data = await response.json().catch(() => null)
+      setIdeasError(data?.error || 'Failed to generate ideas.')
+    }
+
+    setIdeasGenerating(false)
   }
 
   const saveDraft = async (draft: EssayDraft) => {
@@ -442,6 +534,72 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
                       <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
+                </div>
+
+                {/* Idea Vault */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">Idea Vault</h3>
+                      <p className="text-xs text-slate-500">Generate 3-5 niche ideas tailored to your profile.</p>
+                    </div>
+                    <button
+                      onClick={generateIdeas}
+                      disabled={ideasGenerating}
+                      className="px-3 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-60"
+                    >
+                      {ideasGenerating ? 'Generating...' : 'Generate ideas'}
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Add extra context (optional)
+                    </label>
+                    <textarea
+                      value={ideaContext}
+                      onChange={(e) => setIdeaContext(e.target.value)}
+                      placeholder="Anything specific you want the ideas to reflect?"
+                      className="w-full p-2 text-sm text-slate-700 bg-white rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      rows={2}
+                    />
+                  </div>
+
+                  {ideasError && (
+                    <div className="text-xs text-rose-600">{ideasError}</div>
+                  )}
+
+                  {ideasLoading ? (
+                    <div className="text-xs text-slate-500">Loading ideas...</div>
+                  ) : ideas.length === 0 ? (
+                    <div className="text-xs text-slate-500">No ideas yet. Generate a fresh set.</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {ideas.map((idea) => (
+                        <div key={idea.id} className="bg-white border border-slate-200 rounded-lg p-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-semibold text-slate-900">{idea.title}</h4>
+                            <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                              {idea.angle_type && <span>{idea.angle_type}</span>}
+                              {idea.risk_level && <span>• {idea.risk_level} risk</span>}
+                              {idea.difficulty && <span>• {idea.difficulty}</span>}
+                            </div>
+                          </div>
+                          <p className="text-xs text-slate-700 mt-2">{idea.idea_text}</p>
+                          {idea.proof_points && idea.proof_points.length > 0 && (
+                            <div className="mt-2 text-[11px] text-slate-500">
+                              Proof points: {idea.proof_points.join(', ')}
+                            </div>
+                          )}
+                          {idea.uniqueness_rationale && (
+                            <div className="mt-2 text-[11px] text-slate-500">
+                              Why unique: {idea.uniqueness_rationale}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Editor */}
