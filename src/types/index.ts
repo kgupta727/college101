@@ -47,6 +47,8 @@ export interface Narrative {
   recommendedDrops: Activity[]
   actionPlan: string
   essayAngle: string
+  surprisingHook?: string
+  lensKey?: string
 }
 
 // Narrative Analysis
@@ -60,16 +62,16 @@ export interface NarrativeAnalysis {
 export interface SchoolFit {
   schoolId: string
   narrativeId: string
-  traitMatch: {
-    intellectualCuriosity: number
-    socialImpact: number
-    innovation: number
-    resilience: number
-    leadership: number
-    creativity: number
-  }
+  /** Dynamic per-college trait names (camelCase) → score 0-100 */
+  traitMatch: Record<string, number>
   overallFitScore: number
   percentileRank: number
+  /** What this college specifically looks for in applicants */
+  collegeValues: string[]
+  /** Student's profile highlights that map well to this college */
+  strengths: string[]
+  /** Gaps or areas to address for this college */
+  improvements: string[]
   essayRewriteSuggestions?: {
     original: string
     rewritten: string

@@ -20,6 +20,13 @@ type CollegeApiItem = {
   major_offerings_count: number | null
 }
 
+const normalizeAdmissionRate = (value: number | null | undefined): number => {
+  if (!Number.isFinite(value as number)) return 0
+  const numeric = value as number
+  if (numeric <= 0) return 0
+  return numeric <= 1 ? numeric * 100 : numeric
+}
+
 // Recommended famous colleges to show by default
 const RECOMMENDED_COLLEGES = [
   'Harvard University',
@@ -136,7 +143,7 @@ export default function SchoolsStep({ profile, updateProfile }: SchoolsStepProps
           tier: 'Target',
           satRange: [college.sat_low || 0, college.sat_high || 0],
           actRange: [college.act_low || 0, college.act_high || 0],
-          admissionRate: college.admission_rate || 0,
+          admissionRate: normalizeAdmissionRate(college.admission_rate),
           majorOfferingsCount: college.major_offerings_count || 0,
         }))
 
@@ -187,7 +194,7 @@ export default function SchoolsStep({ profile, updateProfile }: SchoolsStepProps
                 tier: 'Target',
                 satRange: [exactMatch.sat_low || 0, exactMatch.sat_high || 0],
                 actRange: [exactMatch.act_low || 0, exactMatch.act_high || 0],
-                admissionRate: exactMatch.admission_rate || 0,
+                admissionRate: normalizeAdmissionRate(exactMatch.admission_rate),
                 majorOfferingsCount: exactMatch.major_offerings_count || 0,
               })
             }

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { StudentProfile, Activity, ActivityTag } from '@/types'
 import { Button } from '../ui/button'
-import { X, Plus, Upload, BarChart3, Sparkles, NotebookPen, Wand2, Edit2 } from 'lucide-react'
+import { X, Plus, Upload, BarChart3, NotebookPen, Wand2, Edit2 } from 'lucide-react'
 
 interface ActivitiesStepProps {
   profile: StudentProfile
@@ -11,36 +11,6 @@ interface ActivitiesStepProps {
 }
 
 const ACTIVITY_TAGS: ActivityTag[] = ['STEM', 'Arts', 'Leadership', 'Community Service', 'Athletics', 'Academic']
-
-const QUICK_TEMPLATES: Activity[] = [
-  {
-    id: 'tmpl-research',
-    name: 'Summer Research Lab',
-    role: 'Research Assistant',
-    hoursPerWeek: 15,
-    yearsInvolved: 1,
-    tags: ['STEM', 'Academic'],
-    description: 'Worked with PI on data collection, built scripts to clean data, co-authored poster.',
-  },
-  {
-    id: 'tmpl-service',
-    name: 'Community STEM Tutoring',
-    role: 'Founder',
-    hoursPerWeek: 6,
-    yearsInvolved: 2,
-    tags: ['Community Service', 'Leadership', 'STEM'],
-    description: 'Launched free after-school program; recruited volunteers and tracked student outcomes.',
-  },
-  {
-    id: 'tmpl-arts',
-    name: 'Jazz Ensemble',
-    role: 'Section Lead',
-    hoursPerWeek: 5,
-    yearsInvolved: 3,
-    tags: ['Arts', 'Leadership'],
-    description: 'Arranged pieces, mentored new members, organized performances.',
-  },
-]
 
 export default function ActivitiesStep({ profile, updateProfile }: ActivitiesStepProps) {
   const [activityName, setActivityName] = useState('')
@@ -139,11 +109,6 @@ export default function ActivitiesStep({ profile, updateProfile }: ActivitiesSte
     setEditingActivityId(null)
   }
 
-  const applyTemplate = (template: Activity) => {
-    const newActivity = { ...template, id: Date.now().toString() }
-    updateProfile({ activities: [...profile.activities, newActivity] })
-  }
-
   const parseBulkInput = () => {
     const lines = bulkInput.split('\n').map((line) => line.trim()).filter(Boolean)
     if (!lines.length) return
@@ -192,23 +157,9 @@ export default function ActivitiesStep({ profile, updateProfile }: ActivitiesSte
 
       {/* Input Form */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-6 shadow-lg">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Single activity</p>
-            <h3 className="text-lg font-semibold text-slate-900">Add an activity with structured stats</h3>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {QUICK_TEMPLATES.map((tpl) => (
-              <button
-                key={tpl.id}
-                onClick={() => applyTemplate(tpl)}
-                className="group flex items-center gap-2 px-4 py-3 text-xs font-semibold rounded-xl bg-slate-900 text-white shadow-sm border border-slate-800 hover:-translate-y-0.5 hover:shadow-md transition"
-              >
-                <Sparkles className="w-4 h-4 text-emerald-300" />
-                <span className="text-left leading-tight">Quick add: {tpl.name}</span>
-              </button>
-            ))}
-          </div>
+        <div>
+          <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Single activity</p>
+          <h3 className="text-lg font-semibold text-slate-900">Add an activity with structured stats</h3>
         </div>
 
         <div>

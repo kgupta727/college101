@@ -1,25 +1,22 @@
 'use server'
 
-import { Narrative } from '@/types'
+import { Narrative, StudentProfile } from '@/types'
 import { analyzeSchoolFit as analyzeSchoolFitFromOpenAI } from '@/lib/openai'
 
 export async function analyzeSchoolFitAction(
   narrative: Narrative,
-  schoolName: string
+  schoolName: string,
+  profile: StudentProfile
 ): Promise<{
-  traitMatch: {
-    intellectualCuriosity: number
-    socialImpact: number
-    innovation: number
-    resilience: number
-    leadership: number
-    creativity: number
-  }
+  traitMatch: Record<string, number>
   overallFitScore: number
   percentileRank: number
+  collegeValues: string[]
+  strengths: string[]
+  improvements: string[]
 }> {
   try {
-    const fitAnalysis = await analyzeSchoolFitFromOpenAI(narrative, schoolName)
+    const fitAnalysis = await analyzeSchoolFitFromOpenAI(narrative, schoolName, profile)
     return fitAnalysis
   } catch (error) {
     console.error('Error analyzing school fit:', error)

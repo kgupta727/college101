@@ -3,6 +3,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { StudentProfile } from '@/types'
 
+const normalizeAdmissionRate = (value: number | null | undefined): number => {
+  if (!Number.isFinite(value as number)) return 0
+  const numeric = value as number
+  if (numeric <= 0) return 0
+  return numeric <= 1 ? numeric * 100 : numeric
+}
+
 export async function saveProfileAction(profile: StudentProfile) {
   const supabase = await createClient()
   
@@ -37,6 +44,10 @@ export async function saveProfileAction(profile: StudentProfile) {
     console.error('Profile save error:', profileError)
     throw new Error(`Failed to save profile: ${profileError.message}`)
   }
+
+  // Invalidate persisted school-fit scores — they are stale whenever the
+  // profile changes (GPA, activities, or school list may all have changed).
+  await supabase.from('school_fits').delete().eq('user_id', user.id)
 
   // Delete existing activities and schools for this profile
   await supabase.from('activities').delete().eq('profile_id', profileData.id)
@@ -154,7 +165,7 @@ export async function loadProfileAction(): Promise<StudentProfile | null> {
         tier: school.type as any || 'Target',
         satRange: [college?.sat_low || 0, college?.sat_high || 0] as [number, number],
         actRange: [college?.act_low || 0, college?.act_high || 0] as [number, number],
-        admissionRate: college?.admission_rate || 0,
+        admissionRate: normalizeAdmissionRate(college?.admission_rate),
         majorOfferingsCount: college?.major_offerings_count || 0,
       }
     }),
@@ -205,7 +216,7 @@ export async function saveNarrativesAction(profileId: string, narratives: any[])
   return { success: true }
 }
 
-export async function loadNarrativesAction(): Promise<any[]> {
+export async function loadNarrativesAction(profileId?: string): Promise<any[]> {
   const supabase = await createClient()
   
   const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -214,22 +225,73 @@ export async function loadNarrativesAction(): Promise<any[]> {
     return []
   }
 
-  // Get profile for user
-  const { data: profileData } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('user_id', user.id)
-    .single()
-
-  if (!profileData) return []
+  // Reuse profileId if provided (avoids a round-trip to the profiles table)
+  let pid = profileId
+  if (!pid) {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single()
+    if (!profileData) return []
+    pid = profileData.id
+  }
 
   // Load narratives
   const { data: narrativesData } = await supabase
     .from('narratives')
     .select('narrative_data')
-    .eq('profile_id', profileData.id)
+    .eq('profile_id', pid)
 
   return (narrativesData || [])
     .map(n => n.narrative_data)
     .filter(Boolean)
+}
+
+/**
+ * Load all persisted reconsider suggestions for a given narrative (by title).
+ * Returns a map of activityId → suggestion text.
+ */
+export async function loadReconsiderSuggestionsAction(
+  narrativeTitle: string
+): Promise<Record<string, string>> {
+  const supabase = await createClient()
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) return {}
+
+  const { data } = await supabase
+    .from('reconsider_suggestions')
+    .select('activity_id, suggestion_text')
+    .eq('user_id', user.id)
+    .eq('narrative_title', narrativeTitle)
+
+  return Object.fromEntries(
+    (data || []).map((r) => [r.activity_id, r.suggestion_text])
+  )
+}
+
+/**
+ * Persist a single reconsider suggestion (upserts on duplicate).
+ */
+export async function saveReconsiderSuggestionAction(
+  narrativeTitle: string,
+  activityId: string,
+  suggestionText: string
+): Promise<void> {
+  const supabase = await createClient()
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) return
+
+  await supabase.from('reconsider_suggestions').upsert(
+    {
+      user_id: user.id,
+      narrative_title: narrativeTitle,
+      activity_id: activityId,
+      suggestion_text: suggestionText,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id,narrative_title,activity_id' }
+  )
 }

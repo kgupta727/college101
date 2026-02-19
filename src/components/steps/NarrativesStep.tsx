@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button'
 import NarrativeDisplay from '@/components/NarrativeDisplay'
 import { Narrative, StudentProfile } from '@/types'
-import { RotateCw } from 'lucide-react'
+import { RotateCw, Loader2 } from 'lucide-react'
 
 interface NarrativesStepProps {
   profile: StudentProfile
@@ -41,8 +41,12 @@ export default function NarrativesStep({
             variant="outline"
             className="border-slate-200 text-slate-700 hover:bg-white gap-2"
           >
-            <RotateCw className="w-4 h-4" />
-            Generate New
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RotateCw className="w-4 h-4" />
+            )}
+            {loading ? 'Generating...' : 'Generate New'}
           </Button>
         </div>
         <NarrativeDisplay

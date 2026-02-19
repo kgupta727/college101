@@ -23,7 +23,7 @@
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
     "shadcn-ui": "^0.9.5",
-    "supabase": "^2.76.8",
+    "supabase": "^2.76.11",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

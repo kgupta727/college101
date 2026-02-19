@@ -7,17 +7,18 @@ import AcademicStep from './steps/AcademicStep'
 import SchoolsStep from './steps/SchoolsStep'
 import ConstraintsStep from './steps/ConstraintsStep'
 import { Button } from './ui/button'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 
 type Step = 'activities' | 'academic' | 'schools' | 'constraints' | 'review'
 
 interface ProfileFormProps {
-  onComplete: (profile: StudentProfile) => void
+  onComplete: (profile: StudentProfile, additionalContext?: string) => void
   initialProfile?: StudentProfile | null
   onStepComplete?: (profile: StudentProfile) => Promise<void>
+  loading?: boolean
 }
 
-export default function ProfileForm({ onComplete, initialProfile, onStepComplete }: ProfileFormProps) {
+export default function ProfileForm({ onComplete, initialProfile, onStepComplete, loading = false }: ProfileFormProps) {
   const [currentStep, setCurrentStep] = useState<Step>('activities')
   const [profile, setProfile] = useState<StudentProfile>(initialProfile || {
     id: Date.now().toString(),
@@ -40,6 +41,7 @@ export default function ProfileForm({ onComplete, initialProfile, onStepComplete
     schoolFits: [],
   })
   const [saving, setSaving] = useState(false)
+  const [additionalContext, setAdditionalContext] = useState('')
 
   const steps: Step[] = ['activities', 'academic', 'schools', 'constraints', 'review']
   const currentStepIndex = steps.indexOf(currentStep)
@@ -144,7 +146,19 @@ export default function ProfileForm({ onComplete, initialProfile, onStepComplete
                   <p className="text-forest-700 font-bold text-lg">{profile.constraints.monthsUntilDeadline}</p>
                 </div>
               </div>
-              <p className="text-forest-600 text-center leading-relaxed">Ready to generate your narratives? Click "Generate Narratives" below.</p>
+              <p className="text-forest-600 text-center leading-relaxed">Ready to generate your narratives? Add any extra context below, or click generate.</p>
+              <div className="mt-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Anything specific you want your narratives to highlight? <span className="text-slate-400 font-normal">(optional)</span>
+                </label>
+                <textarea
+                  value={additionalContext}
+                  onChange={(e) => setAdditionalContext(e.target.value)}
+                  placeholder="e.g. I want to emphasize my work with underfunded schools, or I’d like one narrative about my identity as a first-gen student..."
+                  className="w-full p-3 text-sm text-slate-800 bg-white rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"
+                  rows={3}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -163,10 +177,12 @@ export default function ProfileForm({ onComplete, initialProfile, onStepComplete
 
           {currentStep === 'review' ? (
             <Button 
-              onClick={() => onComplete(profile)}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg animate-smooth"
+              onClick={() => onComplete(profile, additionalContext.trim() || undefined)}
+              disabled={loading}
+              className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg animate-smooth flex items-center gap-2 disabled:opacity-70"
             >
-              Generate Narratives
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loading ? 'Generating...' : 'Generate Narratives'}
             </Button>
           ) : (
             <Button

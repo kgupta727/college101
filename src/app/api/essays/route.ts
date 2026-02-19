@@ -97,5 +97,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ draft })
+  // Fetch with college + supplement joins so the client doesn't need a second GET
+  const { data: draftWithJoins } = await supabase
+    .from('essay_drafts')
+    .select(`
+      *,
+      college:colleges(id, name),
+      supplement:college_supplements(id, prompt, word_limit, prompt_type)
+    `)
+    .eq('id', draft.id)
+    .single()
+
+  return NextResponse.json({ draft: draftWithJoins ?? draft })
 }

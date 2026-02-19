@@ -6,7 +6,8 @@ import ProfileForm from '@/components/ProfileForm'
 interface ProfileStepProps {
   initialLoad: boolean
   profile: StudentProfile | null
-  onComplete: (profile: StudentProfile) => void
+  loading?: boolean
+  onComplete: (profile: StudentProfile, additionalContext?: string) => void
   onStepComplete: (profile: StudentProfile) => Promise<void>
 }
 
@@ -17,6 +18,7 @@ interface ProfileStepProps {
 export default function ProfileStep({
   initialLoad,
   profile,
+  loading = false,
   onComplete,
   onStepComplete,
 }: ProfileStepProps) {
@@ -31,6 +33,7 @@ export default function ProfileStep({
           onComplete={onComplete}
           initialProfile={profile}
           onStepComplete={onStepComplete}
+          loading={loading}
         />
       )}
     </div>

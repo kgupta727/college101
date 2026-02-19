@@ -1,13 +1,15 @@
 'use server'
 
-import { StudentProfile, Narrative } from '@/types'
+import { Narrative, StudentProfile } from '@/types'
 import { generateNarratives as generateNarrativesFromOpenAI } from '@/lib/openai'
 
 export async function generateNarrativesAction(
-  profile: StudentProfile
+  profile: StudentProfile,
+  previousNarratives?: Narrative[],
+  additionalContext?: string
 ): Promise<Narrative[]> {
   try {
-    const narratives = await generateNarrativesFromOpenAI(profile)
+    const narratives = await generateNarrativesFromOpenAI(profile, previousNarratives, additionalContext)
     return narratives
   } catch (error) {
     console.error('Error generating narratives:', error)

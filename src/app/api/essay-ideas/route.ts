@@ -90,6 +90,7 @@ export async function POST(request: Request) {
     supplement_id,
     common_app_prompt_number,
     user_context,
+    narrative_context,
   } = body
 
   if (!essay_type) {
@@ -216,6 +217,7 @@ export async function POST(request: Request) {
     commonAppPromptText: common_app_prompt_number ? commonAppPrompts[Number(common_app_prompt_number)] : null,
     userContext: user_context || null,
     existingIdeas: existingIdeas || [],
+    narrativeContext: narrative_context || null,
   })
 
   const insertPayload = ideas.map((idea: any) => ({

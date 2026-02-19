@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 
 function LoginForm() {
   const router = useRouter()
@@ -93,8 +94,9 @@ function LoginForm() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 font-medium"
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 font-medium flex items-center justify-center gap-2"
               >
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
             </div>

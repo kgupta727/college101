@@ -14,6 +14,6 @@ interface ActionPlanStepProps {
  * Action Plan step component - fourth and final step in the flow
  * Creates an actionable plan based on school fit analysis
  */
-export default function ActionPlanStep({ profile }: ActionPlanStepProps) {
-  return <EssayWritingPage profile={profile} />
+export default function ActionPlanStep({ profile, narrative }: ActionPlanStepProps) {
+  return <EssayWritingPage profile={profile} narrative={narrative} />
 }

@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { StudentProfile, Narrative } from '@/types'
 import { generateNarrativesAction } from '@/actions/generateNarratives'
 import { loadProfileAction, saveProfileAction, saveNarrativesAction, loadNarrativesAction } from '@/actions/profileActions'
+import { clearAllSchoolFitCaches } from '@/lib/schoolFitCache'
+import { clearSchoolFitsFromDB } from '@/actions/schoolFitActions'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import UserMenu from '@/components/UserMenu'
 import ProgressIndicator from '@/components/ProgressIndicator'
@@ -38,7 +40,7 @@ export default function FlowPage() {
           setProfile(existingProfile)
 
           // Load saved narratives
-          const savedNarratives = await loadNarrativesAction()
+          const savedNarratives = await loadNarrativesAction(existingProfile.id)
           if (savedNarratives && savedNarratives.length > 0) {
             setNarratives(savedNarratives)
             setSelectedNarrative(savedNarratives[0])
@@ -79,13 +81,18 @@ export default function FlowPage() {
   }, [currentStep])
 
   // Wrapped handler functions with useCallback for performance optimization
-  const handleProfileComplete = useCallback(async (completeProfile: StudentProfile) => {
+  const handleProfileComplete = useCallback(async (completeProfile: StudentProfile, additionalContext?: string) => {
     setProfile(completeProfile)
     setLoading(true)
 
     try {
       await saveProfileAction(completeProfile)
-      const generatedNarratives = await generateNarrativesAction(completeProfile)
+      // Invalidate school-fit caches (localStorage + DB) — scores stale after profile change
+      clearAllSchoolFitCaches()
+      // DB clear happens inside saveProfileAction automatically; this is a no-op safeguard
+      // in case the user navigates without re-saving (belt-and-suspenders)
+      clearSchoolFitsFromDB().catch(() => {})
+      const generatedNarratives = await generateNarrativesAction(completeProfile, undefined, additionalContext)
       setNarratives(generatedNarratives)
       await saveNarrativesAction(completeProfile.id, generatedNarratives)
       setCurrentStep('narratives')
@@ -116,7 +123,11 @@ export default function FlowPage() {
     setLoading(true)
 
     try {
-      const generatedNarratives = await generateNarrativesAction(profile)
+      // Pass existing narratives so GPT avoids repeating them
+      const generatedNarratives = await generateNarrativesAction(profile, narratives.length > 0 ? narratives : undefined)
+      // Regenerated narratives — old school-fit results are stale; clear L1 + L2
+      clearAllSchoolFitCaches()
+      clearSchoolFitsFromDB().catch(() => {})
       setNarratives(generatedNarratives)
       await saveNarrativesAction(profile.id, generatedNarratives)
       setSelectedNarrative(generatedNarratives[0] || null)
@@ -126,7 +137,7 @@ export default function FlowPage() {
     } finally {
       setLoading(false)
     }
-  }, [profile])
+  }, [profile, narratives])
 
   const handleNarrativeSelect = useCallback((narrative: Narrative) => {
     setCompletionState(prev => ({ ...prev, narrativeCompleted: true }))
@@ -181,22 +192,44 @@ export default function FlowPage() {
         </header>
 
         {/* Main Content */}
-        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Progress Indicator */}
-        <ProgressIndicator 
-          currentStep={currentStep} 
-          onStepChange={handleNavigateToStep}
-          completionState={completionState}
-        />
+        <main className="py-8">
+        {/* Progress Indicator - always centered */}
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+          <ProgressIndicator 
+            currentStep={currentStep} 
+            onStepChange={handleNavigateToStep}
+            completionState={completionState}
+          />
+        </div>
 
+        {/* Step Content - contained for most steps, full-bleed for essay library */}
+        <div className={currentStep === 'actionPlan' ? '' : 'max-w-6xl mx-auto px-4 sm:px-6 lg:px-8'}>
         {/* Step Content */}
-        {currentStep === 'profile' && (
+        {currentStep === 'profile' && !loading && (
           <ProfileStep
             initialLoad={initialLoad}
             profile={profile}
+            loading={loading}
             onComplete={handleProfileComplete}
             onStepComplete={handleProfileStepComplete}
           />
+        )}
+
+        {currentStep === 'profile' && loading && (
+          <div className="rounded-3xl border border-slate-200 bg-white/80 shadow-[0_24px_60px_rgba(15,23,42,0.08)] p-12">
+            <div className="flex flex-col items-center justify-center gap-6 text-center">
+              <Loader2 className="w-10 h-10 animate-spin text-slate-400" />
+              <div>
+                <h2 className="text-xl font-semibold text-slate-900 mb-2">Generating your narratives…</h2>
+                <p className="text-slate-500 text-sm">Analyzing your activities, GPA, and goals to craft your unique story.</p>
+              </div>
+              <div className="w-full max-w-md space-y-3 mt-4">
+                {[0.7, 0.9, 0.5].map((w, i) => (
+                  <div key={i} className="h-14 bg-slate-100 rounded-2xl animate-pulse" style={{ width: `${w * 100}%`, margin: '0 auto' }} />
+                ))}
+              </div>
+            </div>
+          </div>
         )}
 
         {currentStep === 'narratives' && profile && (
@@ -235,6 +268,7 @@ export default function FlowPage() {
             onComplete={handleActionPlanCompleted}
           />
         )}
+        </div>
         </main>
       </div>
     </div>

@@ -1,8 +1,9 @@
-'use client'
+﻿'use client'
 
-import { useEffect, useState } from 'react'
-import { StudentProfile } from '@/types'
-import { FileText, Plus, Trash2, Star, StarOff, Save, ChevronDown, ChevronRight } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { StudentProfile, Narrative } from '@/types'
+import { selectCommonAppPrompt, generateSchoolEssayStrategy } from '@/lib/essay-strategy'
+import { FileText, Plus, Trash2, Star, StarOff, Save, ChevronDown, ChevronRight, Loader2, BookOpen, Lightbulb, Sparkles } from 'lucide-react'
 
 interface EssayDraft {
   id: string
@@ -82,7 +83,7 @@ interface EssayIdea {
   created_at: string
 }
 
-export default function EssayWritingPage({ profile }: { profile: StudentProfile }) {
+export default function EssayWritingPage({ profile, narrative }: { profile: StudentProfile; narrative?: Narrative }) {
   const [colleges, setColleges] = useState<College[]>([])
   const [drafts, setDrafts] = useState<EssayDraft[]>([])
   const [loading, setLoading] = useState(true)
@@ -98,6 +99,17 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
   const [ideasGenerating, setIdeasGenerating] = useState(false)
   const [ideasError, setIdeasError] = useState<string | null>(null)
 
+  // Autosave
+  const [isDirty, setIsDirty] = useState(false)
+  const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const isDirtyRef = useRef(false)
+  // Ref to always-current draft so debounce timer isn't stale
+  const activeDraftRef = useRef<EssayDraft | null>(null)
+
+  useEffect(() => {
+    activeDraftRef.current = activeDraft
+  }, [activeDraft])
+
   useEffect(() => {
     loadData()
   }, [])
@@ -105,31 +117,19 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
   const loadData = async () => {
     // Load colleges and their supplements
     if (profile.targetSchools && profile.targetSchools.length > 0) {
-      const collegesData: College[] = []
-      
-      for (const school of profile.targetSchools) {
-        const collegeId = typeof school === 'string' ? school : school.id
-        const collegeName = typeof school === 'string' ? school : school.name
-        
-        // Fetch supplements for this college
-        const response = await fetch(`/api/colleges/${collegeId}/supplements`)
-        if (response.ok) {
-          const { supplements } = await response.json()
-          collegesData.push({
-            id: collegeId,
-            name: collegeName,
-            supplements: supplements || [],
-          })
-        } else {
-          // College exists but has no supplements
-          collegesData.push({
-            id: collegeId,
-            name: collegeName,
-            supplements: [],
-          })
-        }
-      }
-      
+      // Fetch all schools' supplements in parallel
+      const collegesData = await Promise.all(
+        profile.targetSchools.map(async (school) => {
+          const collegeId = typeof school === 'string' ? school : school.id
+          const collegeName = typeof school === 'string' ? school : school.name
+          const response = await fetch(`/api/colleges/${collegeId}/supplements`)
+          if (response.ok) {
+            const { supplements } = await response.json()
+            return { id: collegeId, name: collegeName, supplements: (supplements || []) as Supplement[] }
+          }
+          return { id: collegeId, name: collegeName, supplements: [] as Supplement[] }
+        })
+      )
       setColleges(collegesData)
     }
     
@@ -168,19 +168,10 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
     })
 
     if (response.ok) {
+      // POST now returns joined college + supplement data — no extra GET needed
       const { draft } = await response.json()
-      // Reload drafts to get the full data with joins
-      await loadDrafts()
-      
-      // Find the newly created draft from the reloaded drafts (which has supplement data)
-      const reloadResponse = await fetch('/api/essays')
-      if (reloadResponse.ok) {
-        const { drafts: reloadedDrafts } = await reloadResponse.json()
-        const newDraft = reloadedDrafts.find((d: EssayDraft) => d.id === draft.id)
-        setActiveDraft(newDraft || draft)
-        setDrafts(reloadedDrafts)
-      }
-      
+      setDrafts((prev) => [draft, ...prev])
+      setActiveDraft(draft)
       return draft
     }
   }
@@ -192,6 +183,47 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
       setDrafts(loadedDrafts)
     }
   }
+
+  /**
+   * Silently autosave — called from the 2-second debounce timer.
+   * Does not set `saving` state so the UI doesn't show the spinner.
+   */
+  const autosaveCurrentDraft = useCallback(async (draft: EssayDraft) => {
+    if (!draft.id) return
+    isDirtyRef.current = false
+    setIsDirty(false)
+    const response = await fetch(`/api/essays/${draft.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: draft.content,
+        title: draft.title,
+        notes: draft.notes,
+        is_primary: draft.is_primary,
+        common_app_prompt_number: draft.common_app_prompt_number,
+      }),
+    })
+    if (response.ok) {
+      const { draft: savedDraft } = await response.json()
+      setLastSaved(new Date())
+      const merged = { ...draft, ...savedDraft, college: draft.college, supplement: draft.supplement }
+      setDrafts((prev) => prev.map((d) => (d.id === draft.id ? merged : d)))
+    } else {
+      // Re-flag dirty so the manual Save button retries
+      isDirtyRef.current = true
+      setIsDirty(true)
+    }
+  }, [])
+
+  // Cancel any pending autosave when switching to a different draft
+  useEffect(() => {
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current)
+        autosaveTimerRef.current = null
+      }
+    }
+  }, [activeDraft?.id])
 
   const getDraftsForSupplement = (collegeId: string, supplementId: string) => {
     return drafts.filter(
@@ -287,6 +319,15 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
         supplement_id: activeDraft.supplement_id,
         common_app_prompt_number: activeDraft.common_app_prompt_number,
         user_context: ideaContext.trim() || null,
+        // Pass selected narrative so ideas are grounded in the student's chosen angle
+        narrative_context: narrative
+          ? {
+              title: narrative.title,
+              theme: narrative.theme,
+              essayAngle: narrative.essayAngle ?? null,
+              surprisingHook: narrative.surprisingHook ?? null,
+            }
+          : null,
       }),
     })
 
@@ -316,8 +357,14 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
     })
 
     if (response.ok) {
+      const { draft: savedDraft } = await response.json()
       setLastSaved(new Date())
-      await loadDrafts()
+      setIsDirty(false)
+      isDirtyRef.current = false
+      // Optimistic: preserve join data (college, supplement) from local state
+      const merged = { ...draft, ...savedDraft, college: draft.college, supplement: draft.supplement }
+      setDrafts((prev) => prev.map((d) => (d.id === draft.id ? merged : d)))
+      setActiveDraft((prev) => (prev?.id === draft.id ? merged : prev))
     }
     setSaving(false)
   }
@@ -340,8 +387,9 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
     })
 
     if (response.ok) {
+      // POST now returns joined data — no extra GET needed
       const { draft } = await response.json()
-      await loadDrafts()
+      setDrafts((prev) => [draft, ...prev])
       setActiveDraft(draft)
     }
   }
@@ -351,7 +399,8 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
 
     const response = await fetch(`/api/essays/${draftId}`, { method: 'DELETE' })
     if (response.ok) {
-      await loadDrafts()
+      // Remove from state directly — no refetch needed
+      setDrafts((prev) => prev.filter((d) => d.id !== draftId))
       if (activeDraft?.id === draftId) {
         setActiveDraft(null)
       }
@@ -370,41 +419,107 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white p-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center text-slate-500">Loading essays...</div>
+          <div className="mb-8">
+            <div className="h-9 w-44 bg-slate-200 rounded-lg animate-pulse mb-2" />
+            <div className="h-5 w-80 bg-slate-100 rounded animate-pulse" />
+          </div>
+          <div className="grid grid-cols-12 gap-6">
+            <div className="col-span-2">
+              <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+                {[0, 1, 2, 3].map(i => (
+                  <div key={i} className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            </div>
+            <div className="col-span-7">
+              <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+                <div className="h-7 w-1/3 bg-slate-200 rounded-lg animate-pulse" />
+                <div className="h-4 bg-slate-100 rounded animate-pulse" />
+                <div className="h-4 w-2/3 bg-slate-100 rounded animate-pulse" />
+                <div className="h-96 bg-slate-100 rounded-xl animate-pulse" />
+              </div>
+            </div>
+            <div className="col-span-3">
+              <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+                <div className="h-6 w-1/2 bg-slate-200 rounded-lg animate-pulse" />
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="h-24 bg-slate-100 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      <div className="max-w-7xl mx-auto p-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Essay Library</h1>
-          <p className="text-slate-600 mt-2">
-            All your college essays in one place. Create multiple versions and keep everything organized.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-12 gap-6">
+    <div className="w-full px-12 py-8">
+        <div className="rounded-3xl border border-slate-200 bg-white/80 shadow-[0_24px_60px_rgba(15,23,42,0.08)] overflow-hidden">
+          {/* Card Header */}
+          <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Essay Library</h1>
+              <p className="text-slate-500 text-sm mt-0.5">All your college essays in one place. Create multiple versions and keep everything organized.</p>
+            </div>
+            {narrative && (
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-sm flex-shrink-0">
+                <BookOpen className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span className="text-amber-900 font-medium">Writing from:</span>
+                <span className="text-amber-800">{narrative.title}</span>
+                {narrative.lensKey && (
+                  <span className="text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">{narrative.lensKey}</span>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-12 divide-x divide-slate-100">
           {/* Sidebar - Essay Navigation */}
-          <div className="col-span-4 space-y-4">
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className="col-span-2 space-y-4">
+            <div className="p-4">
               <div className="space-y-2">
                 {/* Common App Section */}
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <button
                     onClick={() => selectOrCreateDraft('common_app')}
-                    className="w-full flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg transition-colors"
+                    className={`w-full flex items-center justify-between p-2 rounded-lg transition-colors ${
+                      activeDraft?.essay_type === 'common_app' ? 'bg-blue-50' : 'hover:bg-slate-50'
+                    }`}
                   >
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-blue-600" />
                       <span className="font-semibold text-slate-900">Common App Essay</span>
                     </div>
                     <span className="text-xs text-slate-500">
-                      {getCommonAppDrafts().length} {getCommonAppDrafts().length === 1 ? 'draft' : 'drafts'}
+                      {getCommonAppDrafts().length} {getCommonAppDrafts().length === 1 ? 'version' : 'versions'}
                     </span>
                   </button>
+                  {activeDraft?.essay_type === 'common_app' && (
+                    <div className="ml-6 flex flex-wrap gap-1 pb-1">
+                      {getCommonAppDrafts().map((draft) => (
+                        <button
+                          key={draft.id}
+                          onClick={() => setActiveDraft(draft)}
+                          className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
+                            activeDraft?.id === draft.id
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {draft.title || `v${draft.version_number}`}
+                          {draft.is_primary && ' ★'}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => createNewVersion('common_app')}
+                        className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center gap-0.5"
+                        title="Create a new version"
+                      >
+                        <Plus className="w-3 h-3" />
+                        New
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* College Supplements */}
@@ -433,22 +548,52 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
                         ) : (
                           college.supplements.map((supplement) => {
                             const supplementDrafts = getDraftsForSupplement(college.id, supplement.id)
+                            const isSupplementActive = activeDraft?.supplement_id === supplement.id && activeDraft?.college_id === college.id
                             return (
-                              <button
-                                key={supplement.id}
-                                onClick={() => selectOrCreateDraft('supplement', college.id, supplement.id)}
-                                className="w-full text-left p-2 rounded-lg text-sm hover:bg-slate-50 transition-colors"
-                              >
-                                <div className="font-medium text-slate-700">
-                                  {supplement.prompt_type.charAt(0).toUpperCase() + supplement.prompt_type.slice(1)}
-                                </div>
-                                <div className="text-xs text-slate-500 mt-0.5">
-                                  {supplement.word_limit} words • {supplementDrafts.length} {supplementDrafts.length === 1 ? 'draft' : 'drafts'}
-                                </div>
-                                <div className="text-xs text-slate-600 mt-1 line-clamp-2">
-                                  {supplement.prompt}
-                                </div>
-                              </button>
+                              <div key={supplement.id}>
+                                <button
+                                  onClick={() => selectOrCreateDraft('supplement', college.id, supplement.id)}
+                                  className={`w-full text-left p-2 rounded-lg text-sm transition-colors ${
+                                    isSupplementActive ? 'bg-blue-50' : 'hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <div className="font-medium text-slate-700">
+                                    {supplement.prompt_type.charAt(0).toUpperCase() + supplement.prompt_type.slice(1)}
+                                  </div>
+                                  <div className="text-xs text-slate-500 mt-0.5">
+                                    {supplement.word_limit} words · {supplementDrafts.length}{supplementDrafts.length === 1 ? ' draft' : ' drafts'}
+                                  </div>
+                                  <div className="text-xs text-slate-600 mt-1 line-clamp-2">
+                                    {supplement.prompt}
+                                  </div>
+                                </button>
+                                {isSupplementActive && (
+                                  <div className="mt-1 mx-1 flex flex-wrap gap-1 pb-1">
+                                    {supplementDrafts.map((draft) => (
+                                      <button
+                                        key={draft.id}
+                                        onClick={() => setActiveDraft(draft)}
+                                        className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
+                                          activeDraft?.id === draft.id
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                      >
+                                        {draft.title || `v${draft.version_number}`}
+                                        {draft.is_primary && ' ★'}
+                                      </button>
+                                    ))}
+                                    <button
+                                      onClick={() => createNewVersion('supplement', college.id, supplement.id)}
+                                      className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center gap-0.5"
+                                      title="Create a new version"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                      New
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             )
                           })
                         )}
@@ -460,10 +605,10 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
             </div>
           </div>
 
-          {/* Main Editor */}
-          <div className="col-span-8">
+          {/* Centre — Writing Space */}
+          <div className="col-span-7">
             {activeDraft ? (
-              <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+              <div className="p-6 space-y-4">
                 {/* Header */}
                 <div className="flex items-start justify-between border-b border-slate-200 pb-4">
                   <div className="flex-1">
@@ -474,7 +619,6 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
                       placeholder={`Version ${activeDraft.version_number}`}
                       className="text-xl font-semibold text-slate-900 bg-transparent border-none outline-none w-full"
                     />
-                    
                     {/* Common App Prompt Selector */}
                     {activeDraft.essay_type === 'common_app' && (
                       <div className="mt-3">
@@ -483,9 +627,9 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
                         </label>
                         <select
                           value={activeDraft.common_app_prompt_number || ''}
-                          onChange={(e) => setActiveDraft({ 
-                            ...activeDraft, 
-                            common_app_prompt_number: e.target.value ? parseInt(e.target.value) : null 
+                          onChange={(e) => setActiveDraft({
+                            ...activeDraft,
+                            common_app_prompt_number: e.target.value ? parseInt(e.target.value) : null
                           })}
                           className="w-full p-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
@@ -506,7 +650,7 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
                         )}
                       </div>
                     )}
-                    
+                    {/* Supplement prompt */}
                     {activeDraft.supplement && (
                       <div className="mt-2 p-3 bg-slate-50 rounded-lg">
                         <p className="text-sm text-slate-700 italic">{activeDraft.supplement.prompt}</p>
@@ -536,8 +680,212 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
                   </div>
                 </div>
 
+                {/* Editor */}
+                <textarea
+                  value={activeDraft.content}
+                  onChange={(e) => {
+                    const newContent = e.target.value
+                    setActiveDraft({ ...activeDraft, content: newContent })
+                    // Autosave: mark dirty, debounce 2 s
+                    isDirtyRef.current = true
+                    setIsDirty(true)
+                    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+                    autosaveTimerRef.current = setTimeout(() => {
+                      const current = activeDraftRef.current
+                      if (current && isDirtyRef.current) autosaveCurrentDraft(current)
+                    }, 2000)
+                  }}
+                  placeholder="Start writing your essay here..."
+                  className="w-full min-h-[520px] p-4 text-slate-900 bg-slate-50 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+
+                {/* Footer */}
+                <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+                  <div className="flex items-center gap-4 text-sm text-slate-600">
+                    <span>
+                      {activeDraft.content.trim().split(/\s+/).filter(w => w.length > 0).length} words
+                      {activeDraft.supplement?.word_limit && (
+                        <span className={
+                          activeDraft.content.trim().split(/\s+/).filter(w => w.length > 0).length > activeDraft.supplement.word_limit
+                            ? 'text-rose-600 font-medium ml-1'
+                            : 'text-slate-500 ml-1'
+                        }>
+                          / {activeDraft.supplement.word_limit}
+                        </span>
+                      )}
+                    </span>
+                    {isDirty ? (
+                      <span className="text-amber-500">● Unsaved changes</span>
+                    ) : lastSaved ? (
+                      <span className="text-slate-400">Saved {lastSaved.toLocaleTimeString()}</span>
+                    ) : null}
+                  </div>
+                  <button
+                    onClick={() => {
+                      // Cancel any pending autosave and save immediately
+                      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+                      autosaveTimerRef.current = null
+                      saveDraft(activeDraft)
+                    }}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {saving ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+
+                {/* Notes */}
+                <div className="pt-2 border-t border-slate-200">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Notes (optional)</label>
+                  <textarea
+                    value={activeDraft.notes || ''}
+                    onChange={(e) => setActiveDraft({ ...activeDraft, notes: e.target.value })}
+                    placeholder="Add notes about this version..."
+                    className="w-full p-3 text-sm text-slate-700 bg-slate-50 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="p-12 text-center">
+                <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <p className="text-slate-600">Select an essay to start writing</p>
+              </div>
+            )}
+          </div>
+
+          {/* Right — Strategy + Ideas */}
+          <div className="col-span-3 space-y-4 sticky top-8 self-start max-h-[calc(100vh-6rem)] overflow-y-auto p-4">
+            {activeDraft ? (
+              <>
+                {/* Common App Writing Strategy */}
+                {activeDraft.essay_type === 'common_app' && narrative && (() => {
+                  const rec = selectCommonAppPrompt(narrative)
+                  return (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-600" />
+                        <h5 className="text-sm font-semibold text-amber-900">Writing Strategy</h5>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-amber-700">Strategic Angle</p>
+                        <p className="text-sm text-slate-700">{rec.strategicAngle}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-amber-700">Why This Prompt</p>
+                        <p className="text-sm text-slate-700">{rec.narrativeConnection}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs font-medium text-emerald-600 mb-1">Emphasize</p>
+                          <ul className="space-y-0.5">
+                            {rec.whatToEmphasize.map((item, i) => (
+                              <li key={i} className="text-xs text-slate-700 flex gap-1.5">
+                                <span className="text-emerald-500 flex-shrink-0">✓</span>
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-rose-600 mb-1">Avoid</p>
+                          <ul className="space-y-0.5">
+                            {rec.whatToAvoid.map((item, i) => (
+                              <li key={i} className="text-xs text-slate-700 flex gap-1.5">
+                                <span className="text-rose-400 flex-shrink-0">✗</span>
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                      {narrative.surprisingHook && (
+                        <div className="bg-white/80 rounded-lg p-3 border border-amber-100">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                            <p className="text-xs font-medium text-amber-700">Narrative Hook</p>
+                          </div>
+                          <p className="text-sm text-slate-700 font-medium leading-snug">{narrative.surprisingHook}</p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {/* Supplement Essay Strategy */}
+                {activeDraft.supplement && activeDraft.college_id && narrative && (() => {
+                  const school = profile.targetSchools.find(s => s.id === activeDraft.college_id)
+                  if (!school) return null
+                  const supplementForStrategy = [{
+                    id: activeDraft.supplement.id,
+                    prompt: activeDraft.supplement.prompt,
+                    wordLimit: activeDraft.supplement.word_limit,
+                    type: activeDraft.supplement.prompt_type,
+                    schoolValues: [] as string[],
+                    strategicFocus: '',
+                  }]
+                  const strategy = generateSchoolEssayStrategy(narrative, school, supplementForStrategy)
+                  if (!strategy || strategy.supplements.length === 0) return null
+                  const supp = strategy.supplements[0]
+                  return (
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-indigo-600" />
+                        <h5 className="text-sm font-semibold text-indigo-900">Essay Strategy</h5>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-indigo-700">Strategic Angle</p>
+                        <p className="text-sm text-slate-700">{supp.strategicAngle}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs font-medium text-emerald-600 mb-1">Emphasize</p>
+                          <ul className="space-y-0.5">
+                            {supp.whatToEmphasize.slice(0, 3).map((item, i) => (
+                              <li key={i} className="text-xs text-slate-700 flex gap-1.5">
+                                <span className="text-emerald-500 flex-shrink-0">✓</span>
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-rose-600 mb-1">Avoid</p>
+                          <ul className="space-y-0.5">
+                            {supp.whatToAvoid.slice(0, 3).map((item, i) => (
+                              <li key={i} className="text-xs text-slate-700 flex gap-1.5">
+                                <span className="text-rose-400 flex-shrink-0">✗</span>
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                      {strategy.overallStrategy && (
+                        <div className="bg-white/80 rounded-lg p-3 border border-indigo-100">
+                          <p className="text-xs font-medium text-indigo-700 mb-1">Overall Approach</p>
+                          <div className="text-sm text-slate-700 space-y-1.5">
+                            {strategy.overallStrategy.split('\n').filter(Boolean).map((line, i) => (
+                              <p key={i}>
+                                {line.split(/\*\*(.*?)\*\*/g).map((part, j) =>
+                                  j % 2 === 1 ? <strong key={j}>{part}</strong> : part
+                                )}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
                 {/* Idea Vault */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-sm font-semibold text-slate-900">Idea Vault</h3>
@@ -546,8 +894,9 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
                     <button
                       onClick={generateIdeas}
                       disabled={ideasGenerating}
-                      className="px-3 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-60"
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-60"
                     >
+                      {ideasGenerating && <Loader2 className="w-3 h-3 animate-spin" />}
                       {ideasGenerating ? 'Generating...' : 'Generate ideas'}
                     </button>
                   </div>
@@ -560,7 +909,7 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
                       value={ideaContext}
                       onChange={(e) => setIdeaContext(e.target.value)}
                       placeholder="Anything specific you want the ideas to reflect?"
-                      className="w-full p-2 text-sm text-slate-700 bg-white rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      className="w-full p-2 text-sm text-slate-700 bg-slate-50 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                       rows={2}
                     />
                   </div>
@@ -570,16 +919,27 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
                   )}
 
                   {ideasLoading ? (
-                    <div className="text-xs text-slate-500">Loading ideas...</div>
+                    <div className="space-y-3">
+                      {[0, 1, 2].map(i => (
+                        <div key={i} className="border border-slate-200 rounded-lg p-3 space-y-2 animate-pulse">
+                          <div className="flex justify-between">
+                            <div className="h-4 w-1/3 bg-slate-200 rounded" />
+                            <div className="h-3 w-1/4 bg-slate-100 rounded" />
+                          </div>
+                          <div className="h-3 bg-slate-100 rounded" />
+                          <div className="h-3 w-3/4 bg-slate-100 rounded" />
+                        </div>
+                      ))}
+                    </div>
                   ) : ideas.length === 0 ? (
                     <div className="text-xs text-slate-500">No ideas yet. Generate a fresh set.</div>
                   ) : (
                     <div className="space-y-3">
                       {ideas.map((idea) => (
-                        <div key={idea.id} className="bg-white border border-slate-200 rounded-lg p-3">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-sm font-semibold text-slate-900">{idea.title}</h4>
-                            <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                        <div key={idea.id} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="text-sm font-semibold text-slate-900 leading-snug">{idea.title}</h4>
+                            <div className="flex flex-col items-end gap-0.5 text-[11px] text-slate-400 flex-shrink-0">
                               {idea.angle_type && <span>{idea.angle_type}</span>}
                               {idea.risk_level && <span>• {idea.risk_level} risk</span>}
                               {idea.difficulty && <span>• {idea.difficulty}</span>}
@@ -601,69 +961,16 @@ export default function EssayWritingPage({ profile }: { profile: StudentProfile 
                     </div>
                   )}
                 </div>
-
-                {/* Editor */}
-                <div>
-                  <textarea
-                    value={activeDraft.content}
-                    onChange={(e) => setActiveDraft({ ...activeDraft, content: e.target.value })}
-                    placeholder="Start writing your essay here..."
-                    className="w-full min-h-[500px] p-4 text-slate-900 bg-slate-50 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  />
-                </div>
-
-                {/* Footer */}
-                <div className="flex items-center justify-between border-t border-slate-200 pt-4">
-                  <div className="flex items-center gap-4 text-sm text-slate-600">
-                    <span>
-                      {activeDraft.content.trim().split(/\s+/).filter(w => w.length > 0).length} words
-                      {activeDraft.supplement?.word_limit && (
-                        <span className={
-                          activeDraft.content.trim().split(/\s+/).filter(w => w.length > 0).length > activeDraft.supplement.word_limit
-                            ? 'text-rose-600 font-medium ml-1'
-                            : 'text-slate-500 ml-1'
-                        }>
-                          / {activeDraft.supplement.word_limit}
-                        </span>
-                      )}
-                    </span>
-                    {lastSaved && (
-                      <span className="text-slate-400">
-                        Saved {new Date(lastSaved).toLocaleTimeString()} ago
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => saveDraft(activeDraft)}
-                    disabled={saving}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                  >
-                    <Save className="w-4 h-4" />
-                    {saving ? 'Saving...' : 'Save'}
-                  </button>
-                </div>
-
-                {/* Notes */}
-                <div className="pt-4 border-t border-slate-200">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Notes (optional)</label>
-                  <textarea
-                    value={activeDraft.notes || ''}
-                    onChange={(e) => setActiveDraft({ ...activeDraft, notes: e.target.value })}
-                    placeholder="Add notes about this version..."
-                    className="w-full p-3 text-sm text-slate-700 bg-slate-50 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                    rows={3}
-                  />
-                </div>
-              </div>
+              </>
             ) : (
-              <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-600">Select an essay to start writing</p>
+              <div className="p-8 text-center">
+                <Lightbulb className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-sm text-slate-500">Select an essay to see strategy &amp; ideas</p>
               </div>
             )}
           </div>
+          </div>
         </div>
-      </div>
     </div>
   )
 }
